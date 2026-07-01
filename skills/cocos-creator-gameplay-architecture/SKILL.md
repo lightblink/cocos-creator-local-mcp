@@ -35,7 +35,8 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 4. Wire scene dependencies deliberately.
    - Prefer explicit serialized references for authored scene nodes.
    - Use lookup helpers sparingly and fail loudly when required nodes are missing.
-   - For generated starter projects, open the project with `cocos_local_open_project`, wait with `cocos_local_wait_for_editor_bridge`, then apply the starter blueprint with `cocos_local_apply_scene_blueprint` after a scene is active.
+   - For generated starter projects, open or reuse the project with `cocos_local_open_project`, wait with `cocos_local_wait_for_editor_bridge`, then apply the starter blueprint with `cocos_local_apply_scene_blueprint` after a scene is active.
+   - When switching between local Cocos projects, treat already-open Creator windows and bridge ports as shared environment state. Reuse an existing editor for the same project; close unrelated project windows or use distinct bridge ports when routing could become ambiguous.
 5. Verify in runtime context.
    - Run typecheck/build when available.
    - Confirm scene entry, input, state transitions, UI updates, and restart paths.

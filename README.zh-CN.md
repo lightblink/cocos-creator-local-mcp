@@ -148,7 +148,7 @@ npm run check
 | --- | --- |
 | `cocos_local_get_environment` | 检测本地 Cocos Creator 和微信开发者工具 CLI 路径。 |
 | `cocos_local_create_project` | 从本地 Cocos Creator 内置模板创建 3.8 项目。 |
-| `cocos_local_open_project` | 启动 Cocos Creator 打开项目，并可等待 bridge 就绪。 |
+| `cocos_local_open_project` | 启动或复用 Cocos Creator 打开项目，并可等待 bridge 就绪。 |
 | `cocos_local_create_scene_from_template` | 从本地 Creator 模板创建场景。 |
 | `cocos_local_inspect_project` | 检查项目目录、settings、场景、脚本、bridge 和构建输出。 |
 | `cocos_local_create_component_script` | 创建 Cocos Creator TypeScript 组件脚本。 |
@@ -252,7 +252,7 @@ cp -R skills/cocos-wechat-local-build ~/.codex/skills/
 
 1. 调用 `cocos_local_get_environment` 确认本地路径。
 2. 调用 `cocos_local_create_project` 并传入目标 `projectRoot`。
-3. 调用 `cocos_local_open_project`，设置 `waitForBridge: true`。
+3. 调用 `cocos_local_open_project`，设置 `waitForBridge: true`；默认会复用同项目已打开的编辑器，而不是再启动一个重复窗口。
 4. 对非平凡玩法，可先考虑 `cocos_local_create_architecture_skeleton`，再按实际切片裁剪或合并建议系统。
 5. 调用 `cocos_local_apply_scene_blueprint` 创建并装配起步场景。
 6. 调用 `cocos_local_create_wechat_build_config`，传入 `startScenePath: "assets/scenes/Main.scene"`，并为手机优先小游戏显式传入 `designResolution`，例如 `{ "width": 720, "height": 1280, "fitWidth": true, "fitHeight": false }`。

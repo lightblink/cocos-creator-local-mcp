@@ -17,6 +17,7 @@ Prefer editor/MCP operations when available. If direct editor control is not ava
    - Look for `assets/scenes`, `assets/prefabs`, `assets/scripts`, `assets/ui`, `assets/resources`, and existing manager/root node patterns.
    - If the Cocos local MCP tools are available, use `cocos_local_inspect_project` first.
    - If direct editor scene access is needed, install or check the Codex editor bridge with `cocos_local_install_editor_bridge` and `cocos_local_check_editor_bridge`.
+   - Before launching Cocos Creator, reuse an existing editor process for the same project when available. If multiple projects are already open, make the active project and bridge port explicit before applying scene changes.
    - If a new scene asset is needed, use `cocos_local_create_scene_from_template` to create a Creator 3.8 default 2D scene under `assets/scenes`.
 2. Define the runtime graph.
    - Identify persistent managers, gameplay roots, UI roots, pools, cameras, canvas, and authored content.
@@ -143,6 +144,7 @@ Before claiming assembly is complete, verify or explicitly report as pending:
 - required first-loop animation assets are wired to `AnimationClip`, frame-sequence playback, or VFX prefabs and can be triggered in runtime
 - gameplay-critical directional sprites face the correct way without hidden transform hacks
 - editor bridge calls succeeded when live scene edits were claimed
+- the active editor project and bridge port match the intended project when multiple Cocos Creator windows are open
 - runtime evidence was collected before claiming the assembled scene is playable in the simulator
 
 ## Output Standard

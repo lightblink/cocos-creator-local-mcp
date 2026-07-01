@@ -147,7 +147,7 @@ If you also use an asset generation MCP, keep it as a separate server:
 | --- | --- |
 | `cocos_local_get_environment` | Detect local Cocos Creator and WeChat DevTools CLI paths. |
 | `cocos_local_create_project` | Create a local Cocos Creator 3.8 project from a built-in template. |
-| `cocos_local_open_project` | Launch Cocos Creator for a project and optionally wait for the bridge. |
+| `cocos_local_open_project` | Launch or reuse Cocos Creator for a project and optionally wait for the bridge. |
 | `cocos_local_create_scene_from_template` | Create a Cocos scene from local Creator templates. |
 | `cocos_local_inspect_project` | Inspect project folders, settings, scenes, scripts, bridge files, and build output. |
 | `cocos_local_create_component_script` | Create a Cocos Creator TypeScript component. |
@@ -251,7 +251,7 @@ The sequence tool preserves the provided order, resolves each PNG to its importe
 
 1. Call `cocos_local_get_environment` to confirm local paths.
 2. Call `cocos_local_create_project` with a target `projectRoot`.
-3. Call `cocos_local_open_project` with `waitForBridge: true`.
+3. Call `cocos_local_open_project` with `waitForBridge: true`; by default it reuses an already-open editor for the same project instead of launching a duplicate window.
 4. For non-trivial gameplay, consider `cocos_local_create_architecture_skeleton` before feature scripts, then prune or merge the suggested systems to fit the actual slice.
 5. Call `cocos_local_apply_scene_blueprint` to create and wire the starter scene.
 6. Call `cocos_local_create_wechat_build_config` with `startScenePath: "assets/scenes/Main.scene"` and an explicit `designResolution` such as `{ "width": 720, "height": 1280, "fitWidth": true, "fitHeight": false }` for phone-first mini-games.

@@ -22,6 +22,7 @@ Target Cocos Creator 3.8.8 when the local machine has it installed; otherwise de
    - Check for `assets/`, `settings/`, scenes, scripts, existing build output, and project metadata.
 3. Prepare build config.
    - For generated starter projects, use `cocos_local_open_project`, `cocos_local_wait_for_editor_bridge`, and `cocos_local_apply_scene_blueprint` to prepare an active saved scene before creating the final build config.
+   - Reuse an already-open Cocos Creator process for the same project when possible. If old projects are still open from earlier tests, close them or use distinct editor bridge ports before trusting scene or build preparation evidence.
    - Before creating the build config, declare the target device class, orientation, design resolution, and fit policy. For phone-first WeChat Mini Games, prefer an explicit portrait design resolution such as `720x1280` or a project-proven equivalent unless the game design requires landscape.
    - Use `cocos_local_create_wechat_build_config` for a reproducible config JSON.
    - Pass `designResolution` when the MCP tool supports it. If the tool does not support it, patch the generated config or report the missing adaptation setting instead of silently building with a desktop/template default.

@@ -5,6 +5,7 @@ import {
   makeWechatBuildConfig,
   makeWechatDevToolsCommand,
   makeWechatDevToolsManagementCommand,
+  parseRunningCreatorProjects,
   starterSkeletonFiles
 } from "../src/tools/cocos-local.js";
 
@@ -150,6 +151,21 @@ describe("wechat build config helper", () => {
         }
       }
     });
+  });
+});
+
+describe("cocos creator process parsing", () => {
+  it("extracts running Cocos Creator project roots from ps output", () => {
+    const projects = parseRunningCreatorProjects(`
+22993 /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator --project /Users/qi/Workspace/cocos-tetris-mini
+23860 /Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator --project "/Users/qi/Workspace/star strike"
+32421 /Applications/CocosDashboard.app/Contents/MacOS/CocosDashboard
+`);
+
+    expect(projects).toMatchObject([
+      { pid: 22993, projectRoot: "/Users/qi/Workspace/cocos-tetris-mini" },
+      { pid: 23860, projectRoot: "/Users/qi/Workspace/star strike" }
+    ]);
   });
 });
 

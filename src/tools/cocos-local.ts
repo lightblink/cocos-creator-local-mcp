@@ -1,13 +1,15 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
+import { promisify } from "node:util";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 const defaultMacCreatorPath = "/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator";
 const defaultMacWeChatDevToolsPath = "/Applications/wechatwebdevtools.app/Contents/MacOS/cli";
+const execFileAsync = promisify(execFile);
 
 const projectRootInput = z.object({
   projectRoot: z.string().min(1).describe("Absolute or relative path to a Cocos Creator project root.")
@@ -34,6 +36,7 @@ const createProjectInput = z.object({
 const openProjectInput = z.object({
   projectRoot: z.string().min(1),
   creatorPath: z.string().optional(),
+  reuseExisting: z.boolean().default(true).describe("When true, do not launch a duplicate Cocos Creator process if this project is already open."),
   waitForBridge: z.boolean().default(false),
   port: z.number().int().min(1024).max(65535).default(17388),
   timeoutMs: z.number().int().positive().max(5 * 60 * 1000).default(90 * 1000),
@@ -500,6 +503,45 @@ async function getEnvironment(input: z.infer<typeof getEnvironmentInput>) {
   };
 }
 
+export type RunningCreatorProject = {
+  pid: number;
+  projectRoot: string;
+  command: string;
+};
+
+export function parseRunningCreatorProjects(psOutput: string): RunningCreatorProject[] {
+  const projects: RunningCreatorProject[] = [];
+  for (const line of psOutput.split(/\r?\n/)) {
+    const match = line.match(/^\s*(\d+)\s+(.+)$/);
+    if (!match) continue;
+    const pid = Number(match[1]);
+    const command = match[2];
+    if (!Number.isFinite(pid) || !command.includes("CocosCreator") || !command.includes("--project")) {
+      continue;
+    }
+    const projectMatch = command.match(/(?:^|\s)--project(?:=|\s+)(?:"([^"]+)"|'([^']+)'|(\S+))/);
+    const rawProjectRoot = projectMatch?.[1] ?? projectMatch?.[2] ?? projectMatch?.[3];
+    if (!rawProjectRoot) continue;
+    projects.push({
+      pid,
+      projectRoot: resolve(rawProjectRoot),
+      command
+    });
+  }
+  return projects;
+}
+
+async function listRunningCreatorProjects(): Promise<RunningCreatorProject[]> {
+  try {
+    const { stdout } = await execFileAsync("ps", ["-axo", "pid=,command="], {
+      maxBuffer: 1024 * 1024 * 4
+    });
+    return parseRunningCreatorProjects(stdout);
+  } catch {
+    return [];
+  }
+}
+
 async function createProject(input: z.infer<typeof createProjectInput>) {
   const projectRoot = resolve(input.projectRoot);
   const creatorPath = input.creatorPath ?? process.env.COCOS_CREATOR_PATH ?? defaultMacCreatorPath;
@@ -592,12 +634,43 @@ async function openProject(input: z.infer<typeof openProjectInput>) {
   if (!await exists(creatorPath)) {
     throw new Error(`Cocos Creator executable not found: ${creatorPath}`);
   }
+  const runningProjects = await listRunningCreatorProjects();
+  const sameProject = runningProjects.filter((project) => resolve(project.projectRoot) === projectRoot);
+  const otherProjects = runningProjects.filter((project) => resolve(project.projectRoot) !== projectRoot);
   if (input.dryRun) {
     return {
       dryRun: true,
       command,
+      runningProjects,
+      wouldReuseExisting: input.reuseExisting && sameProject.length > 0,
       notes: ["Dry run only; Cocos Creator was not launched."]
     };
+  }
+
+  if (input.reuseExisting && sameProject.length > 0) {
+    const result: Record<string, unknown> = {
+      dryRun: false,
+      reused: true,
+      projectRoot,
+      existingPids: sameProject.map((project) => project.pid),
+      otherOpenProjects: otherProjects.map((project) => ({
+        pid: project.pid,
+        projectRoot: project.projectRoot
+      })),
+      command,
+      notes: [
+        "A Cocos Creator process for this project is already running; no duplicate editor window was launched.",
+        "If editor bridge calls reach the wrong project, close unrelated Cocos Creator windows or use distinct bridge ports."
+      ]
+    };
+    if (input.waitForBridge) {
+      result.bridge = await waitForEditorBridge({
+        port: input.port,
+        timeoutMs: input.timeoutMs,
+        intervalMs: 1000
+      });
+    }
+    return result;
   }
 
   const child = spawn(creatorPath, args, {
@@ -612,9 +685,17 @@ async function openProject(input: z.infer<typeof openProjectInput>) {
     projectRoot,
     command,
     pid: child.pid,
+    reused: false,
+    otherOpenProjects: otherProjects.map((project) => ({
+      pid: project.pid,
+      projectRoot: project.projectRoot
+    })),
     notes: [
       "Cocos Creator was launched detached.",
-      "The editor bridge responds only after the project extension is enabled and loaded."
+      "The editor bridge responds only after the project extension is enabled and loaded.",
+      otherProjects.length > 0
+        ? "Other Cocos Creator projects are already open; close unrelated windows or use distinct bridge ports if project routing becomes ambiguous."
+        : "No other Cocos Creator project processes were detected before launch."
     ]
   };
   if (input.waitForBridge) {
