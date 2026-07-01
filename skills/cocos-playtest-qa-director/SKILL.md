@@ -21,6 +21,7 @@ This skill coordinates with Cocos local build, scene assembly, gameplay architec
    - Prefer command output, build logs, screenshots, runtime logs, Cocos editor bridge summaries, WeChat DevTools logs, and reproduced steps.
    - For phone-first games, capture or inspect at least one target-runtime viewport screenshot and check playfield scale, HUD readability, control size, safe-area placement, and cropping/letterboxing before calling the slice playable.
    - For from-zero playable slices, record whether first-loop visuals, UI, SFX, and music are generated/imported, deliberately placeholder-only, or missing. Do not let geometry-only visuals pass as production-ready without an explicit waiver.
+   - For generated assets, include asset-review evidence for role fit, orientation, alpha/silhouette quality, mobile readability, collision fit, and whether required sequence animations are present.
 4. Triage findings.
    - Classify blockers, high-risk bugs, design issues, polish issues, and deferred risks.
    - Separate player-facing defects from developer cleanup.
@@ -62,6 +63,8 @@ Do not call a vertical slice verified unless the evidence bundle proves:
 - visual evidence: screenshot, video, scene summary, or equivalent artifact path when available
 - visual readability evidence: target viewport shows the primary playfield, HUD, and controls at intentional readable size with no accidental shrink, crop, or overlap
 - asset/audio evidence: first-loop sprites/UI/SFX/music are present, intentionally deferred, or marked as missing with owner and next action
+- animation evidence: required sprite sheets, Cocos animation clips, or frame-sequence effects are present and visible in runtime, or explicitly marked as missing with owner and next action
+- asset semantic evidence: directional sprites face the correct gameplay direction and generated assets match their design roles at runtime scale
 - unrun checks: any missing runtime, platform, or manual checks are explicitly marked unrun
 
 If only the Cocos build or WeChat package output was inspected, report "local build verified; runtime not run" and do not call the slice verified.
@@ -78,6 +81,8 @@ Read `references/playtest-qa-foundations.md` when the task involves designing pl
 - UI state transitions are visible and correct.
 - Target-runtime screenshot or equivalent visual evidence passes readability, tap-target, safe-area, and scale checks.
 - First-loop visual and audio asset decisions are explicit; geometry-only placeholders are accepted only for logic-only prototypes or early greybox tests.
+- Gameplay-critical generated assets pass role, orientation, alpha, silhouette, animation, and collision-fit review before production-ready acceptance.
+- Required first-loop animations are visible in runtime or explicitly fail the vertical-slice gate.
 - No required serialized reference is missing.
 - Build output contains required WeChat Mini Game files when that platform is targeted.
 - Player-facing issues are triaged before polish-only issues.

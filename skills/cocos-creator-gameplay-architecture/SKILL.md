@@ -23,6 +23,8 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
    - For small or production-oriented slices, sketch a system boundary plan before implementation: candidate domain systems, data/config modules, scene-facing adapters, event flow, ownership, and cross-system dependencies. Keep the plan proportional to the slice.
    - Define a layout contract before implementation: target runtime, target device class, orientation, design resolution, fit policy, safe-area behavior, and the screen regions owned by gameplay and HUD.
    - Define an asset policy for the slice: generated/staged assets through `cocos-asset-pipeline-director`, existing project assets, or deliberate engine-geometry placeholders. For from-zero mini-games, prefer a minimal generated placeholder pack when the asset MCP is available.
+   - For generated gameplay assets, require an asset review handoff before wiring: role, orientation, alpha/silhouette quality, mobile readability, animation readiness, and collision fit. Use `cocos-asset-review-director` when available.
+   - For games where motion carries readability or feel, define an animation/VFX contract before implementation: which actors need sprite sheets, state frames, one-shot effects, loops, and Cocos `AnimationClip` or frame-sequence playback.
    - Keep a small vertical slice playable before adding breadth.
    - For a new mini-game prototype, use `cocos_local_create_minigame_skeleton` when available to create a baseline GameManager, HUD, input, player controller, pool manager, and starter scene blueprint.
    - For non-trivial games, consider `cocos_local_create_architecture_skeleton` when available before feature scripts. Use its preset as a starting point to prune, merge, or rename systems according to the actual design, then create thin Cocos Components that host or adapt the chosen systems.
@@ -59,6 +61,7 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Use an event bus, command queue, or explicit method boundary for cross-system communication. Avoid circular imports and direct mutation across unrelated systems.
 - Keep system update order explicit when multiple systems run per frame.
 - Use object pools for frequent runtime objects and keep spawn/despawn ownership clear.
+- Add an explicit animation or VFX layer when the slice uses animated sprites, repeated effects, hit reactions, explosions, rewards, warning markers, or UI state transitions. A small `AnimationSystem`, `VfxSystem`, `SpriteSequencePlayer`, or effect catalog is preferred over burying frame playback inside unrelated combat or spawner code.
 - For tower defense, consider domains such as `DamageSystem`, `TargetingSystem`, modifier or affix handling, status effects, towers, enemies, waves, economy, levels, assets, audio, UI, and balance/config tables. Use the actual feature set to decide which boundaries deserve files now.
 - For roguelike, RPG, shooter, idle, merge, puzzle, or card games, identify equivalent genre-specific pressure points before implementation instead of defaulting to one manager file by habit.
 - Single-file gameplay is acceptable for a greybox, tiny mechanic proof, or very small vertical slice. If using it, name the tradeoff and the first seams to extract if scope grows.
@@ -79,6 +82,7 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Release dynamically loaded assets when ownership ends.
 - Avoid hardcoding fragile paths unless the project already uses path-based loading.
 - Do not silently replace the asset pipeline with colored nodes or generated geometry. If geometry-only placeholders are used, state why they are acceptable for this slice and list the sprite, UI, SFX, or music classes still pending.
+- Do not treat static sprites as a substitute for required feedback animation. If sequence assets are unavailable, mark the missing animation and keep the playback system ready to receive sprite sheets or `AnimationClip`s.
 
 ## UI And Input
 
@@ -119,4 +123,5 @@ When completing a gameplay task, report:
 - Complexity classification and system boundary plan, including any intentional merges, deferred systems, and extraction triggers if scope grows.
 - Layout contract: target device/orientation, design resolution, fit policy, safe-area behavior, and any responsive layout controller or anchors used.
 - Asset policy: generated/staged/imported assets used, deliberate placeholder geometry, pending sprites/UI/SFX/music, and the reason for any skipped asset class.
+- Animation/VFX policy: sequence assets used or missing, playback system or Cocos animation components created, and any deferred effects that block production readiness.
 - Verification performed and remaining editor/build steps.

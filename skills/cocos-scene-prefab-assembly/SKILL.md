@@ -28,6 +28,7 @@ Prefer editor/MCP operations when available. If direct editor control is not ava
 4. Map assets to references.
    - Identify sprites, audio clips, prefabs, animation clips, fonts, and bundle/resource paths.
    - For from-zero playable scenes, confirm whether each first-loop visual/audio class is generated, existing, deliberately geometry-only, or pending. Do not let missing sprite/UI/SFX/music assets disappear as an implicit scene-assembly choice.
+   - For generated gameplay art, confirm role/orientation review and animation requirements before assigning the asset to scene nodes or prefabs.
 5. Create or update prefabs for repeated objects.
    - Player, enemy, bullet, pickup, effect, floating text, and reusable UI items should normally be prefabs.
 6. Verify scene entry.
@@ -99,6 +100,8 @@ When using a generated starter blueprint, inspect the JSON before applying it. I
 - Provide an initialization method for runtime data such as speed, damage, owner, score value, or target.
 - Provide a reset/despawn method for pooled prefabs.
 - Keep visual child nodes under a named child such as `View` when gameplay root transforms differ from sprite transforms.
+- For animated gameplay objects, wire sprite sheets, `AnimationClip`s, frame-sequence players, VFX prefabs, or state-specific child nodes as part of scene assembly. Do not leave animation assets staged but unreachable from runtime.
+- For directional generated sprites, verify the node rotation/scale does not compensate for a wrong source asset unless the correction is intentional and documented.
 
 ## Serialized Property Contract
 
@@ -137,6 +140,8 @@ Before claiming assembly is complete, verify or explicitly report as pending:
 - gameplay can enter, restart, win/lose, or return to menu as designed
 - no required asset remains only in a generated/staging folder
 - missing first-loop sprite, UI, SFX, or music assets are explicitly accepted as intentional placeholders or listed as pending
+- required first-loop animation assets are wired to `AnimationClip`, frame-sequence playback, or VFX prefabs and can be triggered in runtime
+- gameplay-critical directional sprites face the correct way without hidden transform hacks
 - editor bridge calls succeeded when live scene edits were claimed
 - runtime evidence was collected before claiming the assembled scene is playable in the simulator
 
