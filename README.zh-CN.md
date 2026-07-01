@@ -39,6 +39,9 @@
 - 生成可复用的 `wechatgame` 构建配置。
 - 调用 Cocos Creator 命令行执行本地构建。
 - 检查微信小游戏输出目录、必备文件和包体大小预警。
+- 通过微信开发者工具官方 CLI 打开本地构建、生成 preview 信息、清缓存和关闭项目。
+- 静态审计包体、纹理、音频、脚本和首包风险。
+- 汇总垂直切片运行证据，明确区分“构建通过”“DevTools 已打开”和“运行时已验证”。
 - 边界清楚：本 MCP 负责本地 Cocos 自动化，素材生成交给独立素材 MCP。
 
 ## 快速链接
@@ -163,6 +166,11 @@ npm run check
 | `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置。 |
 | `cocos_local_build_wechatgame` | 执行本地 Cocos `wechatgame` 命令行构建。 |
 | `cocos_local_check_wechat_build_output` | 检查构建输出必备文件和包体大小预警。 |
+| `cocos_local_open_wechat_devtools` | 通过官方 CLI 在微信开发者工具中打开本地 `build/wechatgame`。 |
+| `cocos_local_preview_wechat_devtools` | 执行微信开发者工具 preview，并可写出 QR/info 证据文件。 |
+| `cocos_local_manage_wechat_devtools` | 本地清理 DevTools 缓存、关闭项目或退出 DevTools。 |
+| `cocos_local_audit_runtime_package` | 审计输出/资源的包体预算、大纹理、大音频和首包风险。 |
+| `cocos_local_collect_runtime_evidence` | 汇总场景、bridge、构建、DevTools、截图、日志和人工观察证据，给出验证状态。 |
 
 ## 配套 Codex Skills
 
@@ -242,8 +250,19 @@ cp -R skills/cocos-wechat-local-build ~/.codex/skills/
 5. 调用 `cocos_local_create_wechat_build_config`，传入 `startScenePath: "assets/scenes/Main.scene"`。
 6. 调用 `cocos_local_build_wechatgame`。
 7. 调用 `cocos_local_check_wechat_build_output`。
+8. 调用 `cocos_local_audit_runtime_package`，在打开模拟器前检查包体和资源尺寸风险。
+9. 调用 `cocos_local_open_wechat_devtools` 打开本地 `build/wechatgame`。
+10. 观察启动、首次输入、核心循环、结算/失败、重开和日志后，调用 `cocos_local_collect_runtime_evidence`。
 
 Cocos Creator 命令行构建成功时会返回 exit code `36`。
+
+验证状态请使用明确口径：
+
+- 构建通过：构建完成，输出文件检查通过。
+- DevTools 已打开：微信开发者工具接受了本地构建目录。
+- 运行时已验证：启动、首次输入、核心循环、结算/失败、重开、日志、截图或场景摘要证据均已检查。
+
+不要只凭构建产物就声称垂直切片已经运行时验证。
 
 ## Editor Bridge
 

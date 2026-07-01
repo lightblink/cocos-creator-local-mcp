@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Added WeChat DevTools CLI helpers for local open, preview artifact generation, cache cleanup, project close, and app quit.
+- Added static runtime package audits for package budgets, large files, PNG dimensions, WAV metadata, and first-package risk.
+- Added vertical-slice runtime evidence aggregation that separates build success, DevTools opening, and verified gameplay.
+- Expanded English and Chinese documentation for local runtime verification boundaries.
+
 ## 0.1.0
 
 - Initial local Cocos Creator MCP server.

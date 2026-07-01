@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { editorBridgeFiles, starterSkeletonFiles } from "../src/tools/cocos-local.js";
+import {
+  editorBridgeFiles,
+  makeWechatDevToolsCommand,
+  makeWechatDevToolsManagementCommand,
+  starterSkeletonFiles
+} from "../src/tools/cocos-local.js";
 
 describe("cocos local editor bridge scaffold", () => {
   it("creates a Cocos Creator 3.x extension with main and scene bridge files", () => {
@@ -75,5 +80,63 @@ describe("cocos local mini-game skeleton scaffold", () => {
     expect(blueprint.nodes?.some((node) => node.path === "Scene/Canvas/Managers/GameManager")).toBe(true);
     expect(blueprint.nodes?.some((node) => node.components?.some((component) => component.type === "Label"))).toBe(true);
     expect(JSON.stringify(blueprint)).toContain('"targetScore":12');
+  });
+});
+
+describe("wechat devtools command helpers", () => {
+  it("builds deterministic open and preview commands", () => {
+    const open = makeWechatDevToolsCommand("/Applications/wechatwebdevtools.app/Contents/MacOS/cli", "open", {
+      project: "/tmp/game/build/wechatgame",
+      port: 9420,
+      lang: "en",
+      disableGpu: true
+    });
+    expect(open.args).toEqual([
+      "open",
+      "--project",
+      "/tmp/game/build/wechatgame",
+      "--port",
+      "9420",
+      "--lang",
+      "en",
+      "--disable-gpu"
+    ]);
+
+    const preview = makeWechatDevToolsCommand("/cli", "preview", {
+      project: "/tmp/game/build/wechatgame",
+      qrFormat: "image",
+      qrOutput: "/tmp/qr.png",
+      infoOutput: "/tmp/preview.json"
+    });
+    expect(preview.args).toEqual([
+      "preview",
+      "--project",
+      "/tmp/game/build/wechatgame",
+      "--qr-format",
+      "image",
+      "--qr-output",
+      "/tmp/qr.png",
+      "--info-output",
+      "/tmp/preview.json"
+    ]);
+  });
+
+  it("builds cache, close, and quit management commands", () => {
+    expect(makeWechatDevToolsManagementCommand("/cli", {
+      action: "clean-cache",
+      project: "/tmp/game/build/wechatgame",
+      cacheType: "compile",
+      lang: "zh"
+    }).args).toEqual(["cache", "--clean", "compile", "--project", "/tmp/game/build/wechatgame", "--lang", "zh"]);
+
+    expect(makeWechatDevToolsManagementCommand("/cli", {
+      action: "close",
+      project: "/tmp/game/build/wechatgame"
+    }).args).toEqual(["close", "--project", "/tmp/game/build/wechatgame"]);
+
+    expect(makeWechatDevToolsManagementCommand("/cli", {
+      action: "quit",
+      project: "/tmp/game/build/wechatgame"
+    }).args).toEqual(["quit"]);
   });
 });

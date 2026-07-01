@@ -1,10 +1,10 @@
 interface:
   display_name: "Cocos WeChat Local Build"
-  short_description: "Build and inspect local wechatgame packages"
-  default_prompt: "Use $cocos-wechat-local-build to build, inspect, and debug a local Cocos Creator 3.8 WeChat Mini Game package."
+  short_description: "Build, audit, and locally verify wechatgame packages"
+  default_prompt: "Use $cocos-wechat-local-build to build, inspect, audit, open, and collect runtime evidence for a local Cocos Creator 3.8 WeChat Mini Game package."
 
 dependencies:
   tools:
     - type: "mcp"
       value: "cocos_creator_local"
-      description: "Cocos Creator Local MCP tools for environment detection, build config generation, wechatgame builds, and build output inspection."
+      description: "Cocos Creator Local MCP tools for environment detection, build config generation, wechatgame builds, output inspection, package audits, WeChat DevTools local commands, and runtime evidence collection."

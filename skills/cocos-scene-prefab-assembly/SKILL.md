@@ -29,6 +29,7 @@ Prefer editor/MCP operations when available. If direct editor control is not ava
    - Player, enemy, bullet, pickup, effect, floating text, and reusable UI items should normally be prefabs.
 6. Verify scene entry.
    - Confirm start scene, Canvas/camera presence, initial state, input path, UI visibility, and reset/restart behavior.
+   - If claiming local runtime verification, pair scene assembly checks with `cocos_local_collect_runtime_evidence` after the project has run in Cocos preview or WeChat DevTools.
 
 ## Editor Bridge Workflow
 
@@ -126,6 +127,7 @@ Before claiming assembly is complete, verify or explicitly report as pending:
 - gameplay can enter, restart, win/lose, or return to menu as designed
 - no required asset remains only in a generated/staging folder
 - editor bridge calls succeeded when live scene edits were claimed
+- runtime evidence was collected before claiming the assembled scene is playable in the simulator
 
 ## Output Standard
 

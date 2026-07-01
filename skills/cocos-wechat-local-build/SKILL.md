@@ -31,8 +31,17 @@ Target Cocos Creator 3.8.8 when the local machine has it installed; otherwise de
 5. Inspect output.
    - Use `cocos_local_check_wechat_build_output` for required files and package budget warnings.
    - Confirm `game.json` and `project.config.json` exist under the built `wechatgame` folder.
-6. Report next local debug steps.
-   - Give exact output path and any WeChat DevTools opening step still needed.
+6. Audit local runtime package risk.
+   - Use `cocos_local_audit_runtime_package` before opening the simulator when the tool is available.
+   - Review package budgets, largest files, oversized textures/audio, and first-package pressure.
+   - Treat this as static risk analysis; it is not FPS, memory, or gameplay verification.
+7. Open or prepare WeChat DevTools locally.
+   - Use `cocos_local_open_wechat_devtools` to open the local `build/wechatgame` output.
+   - Use `cocos_local_preview_wechat_devtools` only when preview artifacts are useful for local/debug review.
+   - Use `cocos_local_manage_wechat_devtools` for cache cleanup, closing the project, or quitting DevTools.
+8. Collect runtime evidence.
+   - Use `cocos_local_collect_runtime_evidence` after observing launch, first input, core loop, result/failure, restart, and logs.
+   - Keep build success, DevTools opening, and runtime verification as separate states in the final answer.
 
 ## Cocos Command-Line Build Shape
 
@@ -76,7 +85,7 @@ After a build, inspect:
 
 Treat Cocos exit code `36` as build success. Treat `32` as invalid build parameters and `34` as an unexpected build failure that needs log inspection.
 
-## Package Budget Guardrails
+## Package And Runtime Guardrails
 
 For WeChat Mini Game local builds, warn early when output size suggests package problems:
 
@@ -85,11 +94,21 @@ For WeChat Mini Game local builds, warn early when output size suggests package 
 
 If the whole `build/wechatgame` folder exceeds 4 MB, do not automatically fail the build; report that subpackage split sizes need inspection. Recommend Asset Bundles or remote/late-loaded resources for optional content.
 
+Use precise verification vocabulary:
+
+- Build verified: Cocos build completed and required output files passed inspection.
+- Package audited: static package and asset-size risks were reviewed.
+- DevTools opened: WeChat DevTools accepted the local build path.
+- Runtime verified: launch, first input, core loop, result/failure, restart, console/log review, and screenshot or scene-summary evidence all passed.
+
+Never claim a vertical slice is runtime-verified from build output alone.
+
 ## Local Debug Boundary
 
 This skill may prepare or open local WeChat DevTools workflows, but must not:
 
 - upload code
+- treat preview artifacts as a release candidate
 - create release candidates
 - submit for review
 - manage production app credentials
@@ -105,4 +124,6 @@ When completing a local build task, report:
 - build exit code and meaning
 - output directory and required file status
 - package-size warnings
-- next local simulator step, if still manual
+- package audit risks, if checked
+- DevTools command result, if opened
+- runtime evidence gates passed or still missing

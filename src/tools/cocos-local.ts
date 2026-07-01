@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
@@ -80,6 +80,80 @@ const checkWechatBuildOutputInput = z.object({
   outputDir: z.string().optional().describe("Path to built wechatgame folder. Defaults to <projectRoot>/build/wechatgame."),
   mainPackageLimitBytes: z.number().int().positive().default(4 * 1024 * 1024),
   totalPackageLimitBytes: z.number().int().positive().default(20 * 1024 * 1024)
+});
+
+const wechatDevToolsBaseInput = z.object({
+  projectRoot: z.string().min(1),
+  outputDir: z.string().default("build/wechatgame").describe("Path to the built WeChat Mini Game folder, relative to projectRoot unless absolute."),
+  wechatDevToolsCliPath: z.string().optional().describe("Optional explicit WeChat DevTools CLI path."),
+  port: z.number().int().min(1024).max(65535).optional().describe("Optional WeChat DevTools automation HTTP port."),
+  lang: z.enum(["en", "zh"]).default("en"),
+  debug: z.boolean().default(false),
+  disableGpu: z.boolean().default(false),
+  timeoutMs: z.number().int().positive().max(5 * 60 * 1000).default(60 * 1000),
+  dryRun: z.boolean().default(false)
+});
+
+const openWechatDevToolsInput = wechatDevToolsBaseInput.extend({
+  requireOutput: z.boolean().default(true).describe("When true, fail if outputDir does not exist before opening DevTools.")
+});
+
+const previewWechatDevToolsInput = wechatDevToolsBaseInput.extend({
+  qrFormat: z.enum(["terminal", "image", "base64"]).default("terminal"),
+  qrOutput: z.string().optional().describe("Optional QR output path, relative to projectRoot unless absolute."),
+  qrSize: z.string().optional(),
+  infoOutput: z.string().optional().describe("Optional preview info output path, relative to projectRoot unless absolute.")
+});
+
+const manageWechatDevToolsInput = z.object({
+  projectRoot: z.string().min(1),
+  outputDir: z.string().default("build/wechatgame"),
+  wechatDevToolsCliPath: z.string().optional(),
+  action: z.enum(["clean-cache", "close", "quit"]),
+  cacheType: z.enum(["storage", "file", "compile", "auth", "network", "session", "all"]).default("compile"),
+  port: z.number().int().min(1024).max(65535).optional(),
+  lang: z.enum(["en", "zh"]).default("en"),
+  timeoutMs: z.number().int().positive().max(5 * 60 * 1000).default(60 * 1000),
+  dryRun: z.boolean().default(false)
+});
+
+const auditLocalPackageInput = z.object({
+  projectRoot: z.string().min(1),
+  outputDir: z.string().default("build/wechatgame"),
+  includeProjectAssets: z.boolean().default(false).describe("Also audit project assets/ in addition to the built output."),
+  mainPackageLimitBytes: z.number().int().positive().default(4 * 1024 * 1024),
+  totalPackageLimitBytes: z.number().int().positive().default(20 * 1024 * 1024),
+  largeFileWarningBytes: z.number().int().positive().default(512 * 1024),
+  textureDimensionWarning: z.number().int().positive().default(2048),
+  audioWarningBytes: z.number().int().positive().default(1024 * 1024)
+});
+
+const collectRuntimeEvidenceInput = z.object({
+  projectRoot: z.string().min(1),
+  scenePath: z.string().default("assets/scenes/Main.scene"),
+  outputDir: z.string().default("build/wechatgame"),
+  bridgePort: z.number().int().min(1024).max(65535).default(17388),
+  checkEditorBridge: z.boolean().default(true),
+  checkBuildOutput: z.boolean().default(true),
+  runtime: z.enum(["not-run", "cocos-editor", "cocos-preview", "wechat-devtools", "other"]).default("not-run"),
+  runtimeStatus: z.enum(["not-run", "opened", "verified"]).default("not-run"),
+  screenshotPath: z.string().optional().describe("Optional screenshot evidence path, relative to projectRoot unless absolute."),
+  logPath: z.string().optional().describe("Optional runtime log evidence path, relative to projectRoot unless absolute."),
+  evidence: z.object({
+    launch: z.boolean().default(false),
+    firstInput: z.boolean().default(false),
+    coreLoop: z.boolean().default(false),
+    resultOrFailure: z.boolean().default(false),
+    restart: z.boolean().default(false),
+    consoleReviewed: z.boolean().default(false)
+  }).default({
+    launch: false,
+    firstInput: false,
+    coreLoop: false,
+    resultOrFailure: false,
+    restart: false,
+    consoleReviewed: false
+  })
 });
 
 const createComponentScriptInput = z.object({
@@ -265,6 +339,36 @@ export function registerCocosLocalTools(server: McpServer): void {
     description: "Check a local Cocos wechatgame build output for required files and package-size budget warnings.",
     inputSchema: checkWechatBuildOutputInput
   }, async (input) => textResult(await checkWechatBuildOutput(input)));
+
+  server.registerTool("cocos_local_open_wechat_devtools", {
+    title: "Open WeChat DevTools",
+    description: "Open a local Cocos wechatgame build folder in WeChat DevTools through the official CLI. This proves DevTools was invoked, not that runtime gameplay passed.",
+    inputSchema: openWechatDevToolsInput
+  }, async (input) => textResult(await openWechatDevTools(input)));
+
+  server.registerTool("cocos_local_preview_wechat_devtools", {
+    title: "Preview WeChat DevTools Project",
+    description: "Run WeChat DevTools CLI preview for a local wechatgame build and optionally write QR/info artifacts.",
+    inputSchema: previewWechatDevToolsInput
+  }, async (input) => textResult(await previewWechatDevTools(input)));
+
+  server.registerTool("cocos_local_manage_wechat_devtools", {
+    title: "Manage WeChat DevTools",
+    description: "Clean WeChat DevTools cache, close a project, or quit DevTools locally without uploading or publishing.",
+    inputSchema: manageWechatDevToolsInput
+  }, async (input) => textResult(await manageWechatDevTools(input)));
+
+  server.registerTool("cocos_local_audit_runtime_package", {
+    title: "Audit Cocos Runtime Package",
+    description: "Inspect local Cocos/WeChat build artifacts for package budgets, oversized textures/audio, required files, and first-package risk.",
+    inputSchema: auditLocalPackageInput
+  }, async (input) => textResult(await auditRuntimePackage(input)));
+
+  server.registerTool("cocos_local_collect_runtime_evidence", {
+    title: "Collect Local Runtime Evidence",
+    description: "Aggregate scene, bridge, build-output, DevTools, screenshot, log, and manual runtime evidence into an explicit vertical-slice verification status.",
+    inputSchema: collectRuntimeEvidenceInput
+  }, async (input) => textResult(await collectRuntimeEvidence(input)));
 
   server.registerTool("cocos_local_create_component_script", {
     title: "Create Cocos Component Script",
@@ -717,6 +821,268 @@ async function checkWechatBuildOutput(input: z.infer<typeof checkWechatBuildOutp
       totalPackageLimitBytes: input.totalPackageLimitBytes
     },
     warnings
+  };
+}
+
+async function openWechatDevTools(input: z.infer<typeof openWechatDevToolsInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  const outputDir = resolveProjectPath(projectRoot, input.outputDir);
+  const cliPath = input.wechatDevToolsCliPath ?? process.env.WECHAT_DEVTOOLS_CLI_PATH ?? defaultMacWeChatDevToolsPath;
+  const outputExists = await exists(outputDir);
+  if (input.requireOutput && !outputExists) {
+    throw new Error(`WeChat build output does not exist: ${outputDir}`);
+  }
+  const command = makeWechatDevToolsCommand(cliPath, "open", {
+    project: outputDir,
+    port: input.port,
+    lang: input.lang,
+    debug: input.debug,
+    disableGpu: input.disableGpu
+  });
+  if (input.dryRun) {
+    return {
+      dryRun: true,
+      command,
+      outputDir,
+      outputExists,
+      verificationLevel: "command prepared",
+      notes: ["Dry run only; WeChat DevTools was not opened."]
+    };
+  }
+  if (!await exists(cliPath)) {
+    throw new Error(`WeChat DevTools CLI not found: ${cliPath}`);
+  }
+  const result = await runProcess(cliPath, command.args, projectRoot, input.timeoutMs);
+  return {
+    dryRun: false,
+    command,
+    outputDir,
+    outputExists,
+    exitCode: result.exitCode,
+    timedOut: result.timedOut,
+    stdoutTail: tail(result.stdout),
+    stderrTail: tail(result.stderr),
+    verificationLevel: result.exitCode === 0 ? "DevTools open command completed" : "DevTools open command failed",
+    runtimeVerified: false,
+    notes: [
+      "A successful open command means WeChat DevTools accepted the project path.",
+      "Do not call the vertical slice runtime-verified until simulator behavior, logs, and gameplay evidence are collected."
+    ]
+  };
+}
+
+async function previewWechatDevTools(input: z.infer<typeof previewWechatDevToolsInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  const outputDir = resolveProjectPath(projectRoot, input.outputDir);
+  const cliPath = input.wechatDevToolsCliPath ?? process.env.WECHAT_DEVTOOLS_CLI_PATH ?? defaultMacWeChatDevToolsPath;
+  const qrOutput = input.qrOutput ? resolveProjectPath(projectRoot, input.qrOutput) : undefined;
+  const infoOutput = input.infoOutput ? resolveProjectPath(projectRoot, input.infoOutput) : undefined;
+  const command = makeWechatDevToolsCommand(cliPath, "preview", {
+    project: outputDir,
+    port: input.port,
+    lang: input.lang,
+    debug: input.debug,
+    disableGpu: input.disableGpu,
+    qrFormat: input.qrFormat,
+    qrOutput,
+    qrSize: input.qrSize,
+    infoOutput
+  });
+  if (qrOutput) await mkdir(dirname(qrOutput), { recursive: true });
+  if (infoOutput) await mkdir(dirname(infoOutput), { recursive: true });
+  if (input.dryRun) {
+    return {
+      dryRun: true,
+      command,
+      outputDir,
+      artifacts: { qrOutput, infoOutput },
+      notes: ["Dry run only; WeChat DevTools preview was not executed."]
+    };
+  }
+  if (!await exists(cliPath)) {
+    throw new Error(`WeChat DevTools CLI not found: ${cliPath}`);
+  }
+  if (!await exists(outputDir)) {
+    throw new Error(`WeChat build output does not exist: ${outputDir}`);
+  }
+  const result = await runProcess(cliPath, command.args, projectRoot, input.timeoutMs);
+  return {
+    dryRun: false,
+    command,
+    outputDir,
+    exitCode: result.exitCode,
+    timedOut: result.timedOut,
+    stdoutTail: tail(result.stdout),
+    stderrTail: tail(result.stderr),
+    artifacts: {
+      qrOutput: qrOutput ? { path: qrOutput, exists: await exists(qrOutput) } : null,
+      infoOutput: infoOutput ? { path: infoOutput, exists: await exists(infoOutput), content: await readTextIfExists(infoOutput) } : null
+    },
+    runtimeVerified: false,
+    notes: [
+      "Preview output can produce QR/info artifacts but does not by itself prove simulator gameplay passed.",
+      "Pair this with cocos_local_collect_runtime_evidence after observing runtime behavior."
+    ]
+  };
+}
+
+async function manageWechatDevTools(input: z.infer<typeof manageWechatDevToolsInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  const outputDir = resolveProjectPath(projectRoot, input.outputDir);
+  const cliPath = input.wechatDevToolsCliPath ?? process.env.WECHAT_DEVTOOLS_CLI_PATH ?? defaultMacWeChatDevToolsPath;
+  const command = makeWechatDevToolsManagementCommand(cliPath, {
+    action: input.action,
+    project: outputDir,
+    cacheType: input.cacheType,
+    port: input.port,
+    lang: input.lang
+  });
+  if (input.dryRun) {
+    return {
+      dryRun: true,
+      command,
+      notes: ["Dry run only; WeChat DevTools was not changed."]
+    };
+  }
+  if (!await exists(cliPath)) {
+    throw new Error(`WeChat DevTools CLI not found: ${cliPath}`);
+  }
+  const result = await runProcess(cliPath, command.args, projectRoot, input.timeoutMs);
+  return {
+    dryRun: false,
+    command,
+    exitCode: result.exitCode,
+    timedOut: result.timedOut,
+    stdoutTail: tail(result.stdout),
+    stderrTail: tail(result.stderr)
+  };
+}
+
+async function auditRuntimePackage(input: z.infer<typeof auditLocalPackageInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  const outputDir = resolveProjectPath(projectRoot, input.outputDir);
+  const outputAudit = await auditFileTree(outputDir, {
+    rootLabel: "buildOutput",
+    largeFileWarningBytes: input.largeFileWarningBytes,
+    textureDimensionWarning: input.textureDimensionWarning,
+    audioWarningBytes: input.audioWarningBytes
+  });
+  const projectAssetsAudit = input.includeProjectAssets
+    ? await auditFileTree(join(projectRoot, "assets"), {
+      rootLabel: "projectAssets",
+      largeFileWarningBytes: input.largeFileWarningBytes,
+      textureDimensionWarning: input.textureDimensionWarning,
+      audioWarningBytes: input.audioWarningBytes
+    })
+    : null;
+  const buildOutput = await checkWechatBuildOutput({
+    projectRoot,
+    outputDir,
+    mainPackageLimitBytes: input.mainPackageLimitBytes,
+    totalPackageLimitBytes: input.totalPackageLimitBytes
+  });
+  const settingsPath = join(outputDir, "src", "settings.json");
+  const settings = await readJsonIfExists(settingsPath);
+  const warnings = [
+    ...buildOutput.warnings,
+    ...outputAudit.warnings,
+    ...(projectAssetsAudit?.warnings ?? [])
+  ];
+  return {
+    projectRoot,
+    outputDir,
+    buildOutput,
+    outputAudit,
+    projectAssetsAudit,
+    cocosSettings: settings ? summarizeCocosSettings(settings) : null,
+    riskSummary: summarizeAuditRisks(outputAudit, projectAssetsAudit),
+    warnings,
+    notes: [
+      "This is a static package audit. It does not measure runtime FPS or draw calls.",
+      "Use it before DevTools runtime checks to catch oversized files, missing required output files, and package budget risks."
+    ]
+  };
+}
+
+async function collectRuntimeEvidence(input: z.infer<typeof collectRuntimeEvidenceInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  const screenshotPath = input.screenshotPath ? resolveProjectPath(projectRoot, input.screenshotPath) : undefined;
+  const logPath = input.logPath ? resolveProjectPath(projectRoot, input.logPath) : undefined;
+  const sceneMetaPath = `${resolveProjectPath(projectRoot, input.scenePath)}.meta`;
+  const sceneUuid = await exists(sceneMetaPath) ? await readSceneUuid(projectRoot, input.scenePath).catch(() => null) : null;
+  const evidenceArtifacts = {
+    screenshot: screenshotPath ? { path: screenshotPath, exists: await exists(screenshotPath) } : null,
+    log: logPath ? { path: logPath, exists: await exists(logPath), tail: tail(await readTextIfExists(logPath) ?? "") } : null
+  };
+  let bridge: unknown = null;
+  if (input.checkEditorBridge) {
+    try {
+      const health = await callEditorBridge({ port: input.bridgePort, route: "/health", method: "GET", timeoutMs: 3000 });
+      const summary = isBridgeHealthOk(health)
+        ? await callEditorBridge({ port: input.bridgePort, route: "/scene/summary", method: "POST", body: {}, timeoutMs: 5000 })
+        : null;
+      bridge = { health, summary };
+    } catch (error) {
+      bridge = { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  const bridgeSummaryOk = Boolean(
+    bridge
+    && typeof bridge === "object"
+    && isBridgeCallSuccessful((bridge as { summary?: unknown }).summary)
+  );
+  const buildOutput = input.checkBuildOutput
+    ? await checkWechatBuildOutput({
+      projectRoot,
+      outputDir: input.outputDir,
+      mainPackageLimitBytes: 4 * 1024 * 1024,
+      totalPackageLimitBytes: 20 * 1024 * 1024
+    })
+    : null;
+  const gates = {
+    launch: input.evidence.launch,
+    firstInput: input.evidence.firstInput,
+    coreLoop: input.evidence.coreLoop,
+    resultOrFailure: input.evidence.resultOrFailure,
+    restart: input.evidence.restart,
+    consoleReviewed: input.evidence.consoleReviewed,
+    screenshotOrEquivalent: Boolean(evidenceArtifacts.screenshot?.exists || bridgeSummaryOk),
+    runtimeUsed: input.runtime !== "not-run",
+    runtimeVerified: input.runtimeStatus === "verified"
+  };
+  const missing = Object.entries(gates)
+    .filter(([, passed]) => !passed)
+    .map(([gate]) => gate);
+  const verticalSliceVerified = missing.length === 0;
+  return {
+    projectRoot,
+    scene: {
+      scenePath: input.scenePath,
+      sceneMetaPath,
+      sceneMetaExists: await exists(sceneMetaPath),
+      sceneUuid
+    },
+    runtime: {
+      runtime: input.runtime,
+      runtimeStatus: input.runtimeStatus,
+      vocabulary: input.runtimeStatus === "not-run"
+        ? "local build may be verified; runtime not run"
+        : input.runtimeStatus === "opened"
+          ? "runtime opened; gameplay not fully verified"
+          : "runtime verified by provided evidence"
+    },
+    bridge,
+    buildOutput,
+    evidenceArtifacts,
+    gates,
+    missing,
+    verticalSliceVerified,
+    notes: verticalSliceVerified
+      ? ["All configured vertical-slice evidence gates passed."]
+      : [
+        "Do not describe the vertical slice as verified until all gates pass.",
+        "A successful build or DevTools open command is not enough without first input, core loop, result/failure, restart, and log evidence."
+      ]
   };
 }
 
@@ -1440,6 +1806,223 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+type WeChatCommandOptions = {
+  project: string;
+  port?: number;
+  lang?: "en" | "zh";
+  debug?: boolean;
+  disableGpu?: boolean;
+  qrFormat?: "terminal" | "image" | "base64";
+  qrOutput?: string;
+  qrSize?: string;
+  infoOutput?: string;
+};
+
+export function makeWechatDevToolsCommand(executable: string, command: "open" | "preview", options: WeChatCommandOptions) {
+  const args = [command, "--project", options.project];
+  if (options.port) args.push("--port", String(options.port));
+  if (options.lang) args.push("--lang", options.lang);
+  if (options.debug) args.push("--debug");
+  if (options.disableGpu) args.push("--disable-gpu");
+  if (command === "preview") {
+    args.push("--qr-format", options.qrFormat ?? "terminal");
+    if (options.qrOutput) args.push("--qr-output", options.qrOutput);
+    if (options.qrSize) args.push("--qr-size", options.qrSize);
+    if (options.infoOutput) args.push("--info-output", options.infoOutput);
+  }
+  return {
+    executable,
+    args,
+    shellCommand: `${JSON.stringify(executable)} ${args.map((arg) => JSON.stringify(arg)).join(" ")}`
+  };
+}
+
+export function makeWechatDevToolsManagementCommand(executable: string, options: {
+  action: "clean-cache" | "close" | "quit";
+  project: string;
+  cacheType?: "storage" | "file" | "compile" | "auth" | "network" | "session" | "all";
+  port?: number;
+  lang?: "en" | "zh";
+}) {
+  const args = options.action === "clean-cache"
+    ? ["cache", "--clean", options.cacheType ?? "compile", "--project", options.project]
+    : options.action === "close"
+      ? ["close", "--project", options.project]
+      : ["quit"];
+  if (options.port) args.push("--port", String(options.port));
+  if (options.lang) args.push("--lang", options.lang);
+  return {
+    executable,
+    args,
+    shellCommand: `${JSON.stringify(executable)} ${args.map((arg) => JSON.stringify(arg)).join(" ")}`
+  };
+}
+
+async function auditFileTree(root: string, options: {
+  rootLabel: string;
+  largeFileWarningBytes: number;
+  textureDimensionWarning: number;
+  audioWarningBytes: number;
+}) {
+  if (!await exists(root)) {
+    return {
+      root,
+      rootLabel: options.rootLabel,
+      exists: false,
+      totalBytes: 0,
+      totalSize: "0 B",
+      fileCount: 0,
+      filesByKind: {},
+      largestFiles: [],
+      textureFindings: [],
+      audioFindings: [],
+      warnings: [`${options.rootLabel} directory does not exist: ${root}`]
+    };
+  }
+  const files = await listFiles(root);
+  const inspected = await Promise.all(files.map((file) => inspectRuntimeFile(root, file)));
+  const filesByKind = inspected.reduce<Record<string, number>>((acc, file) => {
+    acc[file.kind] = (acc[file.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  const totalBytes = inspected.reduce((sum, file) => sum + file.bytes, 0);
+  const textureFindings = inspected.filter((file) => file.kind === "texture" && file.texture);
+  const audioFindings = inspected.filter((file) => file.kind === "audio" && file.audio);
+  const warnings: string[] = [];
+  for (const file of inspected) {
+    if (file.bytes >= options.largeFileWarningBytes) {
+      warnings.push(`${options.rootLabel}: large file ${file.relativePath} is ${formatBytes(file.bytes)}.`);
+    }
+    if (file.kind === "texture" && file.texture) {
+      if (file.texture.width >= options.textureDimensionWarning || file.texture.height >= options.textureDimensionWarning) {
+        warnings.push(`${options.rootLabel}: large texture ${file.relativePath} is ${file.texture.width}x${file.texture.height}.`);
+      }
+    }
+    if (file.kind === "audio" && file.bytes >= options.audioWarningBytes) {
+      warnings.push(`${options.rootLabel}: large audio ${file.relativePath} is ${formatBytes(file.bytes)}.`);
+    }
+  }
+  return {
+    root,
+    rootLabel: options.rootLabel,
+    exists: true,
+    totalBytes,
+    totalSize: formatBytes(totalBytes),
+    fileCount: inspected.length,
+    filesByKind,
+    largestFiles: inspected
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 25),
+    textureFindings,
+    audioFindings,
+    warnings
+  };
+}
+
+async function inspectRuntimeFile(root: string, file: { path: string; bytes: number }) {
+  const extension = extname(file.path).toLowerCase();
+  const kind = classifyRuntimeFile(extension);
+  return {
+    path: file.path,
+    relativePath: relative(root, file.path),
+    bytes: file.bytes,
+    size: formatBytes(file.bytes),
+    extension,
+    kind,
+    texture: kind === "texture" ? await readTextureInfo(file.path, extension) : null,
+    audio: kind === "audio" ? await readAudioInfo(file.path, extension) : null
+  };
+}
+
+function classifyRuntimeFile(extension: string): "texture" | "audio" | "script" | "json" | "asset" | "other" {
+  if ([".png", ".jpg", ".jpeg", ".webp"].includes(extension)) return "texture";
+  if ([".wav", ".mp3", ".ogg", ".m4a", ".aac"].includes(extension)) return "audio";
+  if ([".js", ".wasm"].includes(extension)) return "script";
+  if ([".json"].includes(extension)) return "json";
+  if ([".bin", ".cconb", ".ccon", ".plist"].includes(extension)) return "asset";
+  return "other";
+}
+
+async function readTextureInfo(path: string, extension: string) {
+  if (extension !== ".png") return null;
+  const bytes = await readFile(path);
+  if (bytes.length < 24) return null;
+  const signature = bytes.subarray(0, 8).toString("hex");
+  if (signature !== "89504e470d0a1a0a") return null;
+  return {
+    format: "png",
+    width: bytes.readUInt32BE(16),
+    height: bytes.readUInt32BE(20)
+  };
+}
+
+async function readAudioInfo(path: string, extension: string) {
+  if (extension !== ".wav") return null;
+  const bytes = await readFile(path);
+  if (bytes.length < 44 || bytes.subarray(0, 4).toString("ascii") !== "RIFF" || bytes.subarray(8, 12).toString("ascii") !== "WAVE") {
+    return null;
+  }
+  const channels = bytes.readUInt16LE(22);
+  const sampleRate = bytes.readUInt32LE(24);
+  const byteRate = bytes.readUInt32LE(28);
+  const dataIndex = bytes.indexOf("data", 12, "ascii");
+  const dataBytes = dataIndex >= 0 && dataIndex + 8 <= bytes.length ? bytes.readUInt32LE(dataIndex + 4) : Math.max(0, bytes.length - 44);
+  return {
+    format: "wav",
+    channels,
+    sampleRate,
+    durationSeconds: byteRate > 0 ? Number((dataBytes / byteRate).toFixed(3)) : null
+  };
+}
+
+async function readTextIfExists(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+async function readJsonIfExists(path: string): Promise<unknown | null> {
+  const text = await readTextIfExists(path);
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function summarizeCocosSettings(settings: unknown) {
+  if (!settings || typeof settings !== "object") return null;
+  const value = settings as {
+    CocosEngine?: unknown;
+    launch?: { launchScene?: unknown };
+    assets?: { remoteBundles?: unknown; subpackages?: unknown; preloadBundles?: unknown };
+    screen?: unknown;
+  };
+  return {
+    engine: value.CocosEngine ?? null,
+    launchScene: value.launch?.launchScene ?? null,
+    remoteBundles: value.assets?.remoteBundles ?? null,
+    subpackages: value.assets?.subpackages ?? null,
+    preloadBundles: value.assets?.preloadBundles ?? null,
+    screen: value.screen ?? null
+  };
+}
+
+function summarizeAuditRisks(...audits: Array<Awaited<ReturnType<typeof auditFileTree>> | null>) {
+  const active = audits.filter((audit): audit is Awaited<ReturnType<typeof auditFileTree>> => Boolean(audit));
+  return {
+    totalWarnings: active.reduce((sum, audit) => sum + audit.warnings.length, 0),
+    totalBytes: active.reduce((sum, audit) => sum + audit.totalBytes, 0),
+    totalSize: formatBytes(active.reduce((sum, audit) => sum + audit.totalBytes, 0)),
+    largestFiles: active.flatMap((audit) => audit.largestFiles)
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 10)
+  };
 }
 
 function isBridgeHealthOk(value: unknown): boolean {

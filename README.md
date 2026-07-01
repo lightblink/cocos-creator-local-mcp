@@ -38,6 +38,9 @@ It is designed for agent-driven development on a developer machine where Cocos C
 - High-level sprite placement helpers for generated Cocos assets.
 - Repeatable `wechatgame` build configuration and command-line build execution.
 - Output checks for required WeChat Mini Game files and package-size warnings.
+- WeChat DevTools CLI helpers for opening local builds, preview artifacts, cache cleanup, and explicit runtime-evidence vocabulary.
+- Static runtime package audits for oversized textures, audio, scripts, and first-package risk.
+- Vertical-slice evidence aggregation that separates build success, DevTools opening, and verified gameplay.
 - Clean responsibility boundary: this MCP automates Cocos locally; asset generation belongs in a separate asset MCP.
 
 ## Quick Links
@@ -162,6 +165,11 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config. |
 | `cocos_local_build_wechatgame` | Run a local Cocos `wechatgame` command-line build. |
 | `cocos_local_check_wechat_build_output` | Inspect build output for required files and size warnings. |
+| `cocos_local_open_wechat_devtools` | Open a local `build/wechatgame` folder in WeChat DevTools through the official CLI. |
+| `cocos_local_preview_wechat_devtools` | Run WeChat DevTools preview and optionally write QR/info artifacts. |
+| `cocos_local_manage_wechat_devtools` | Clean DevTools cache, close a project, or quit DevTools locally. |
+| `cocos_local_audit_runtime_package` | Audit output/assets for package budgets, oversized textures/audio, and first-package risk. |
+| `cocos_local_collect_runtime_evidence` | Aggregate scene, bridge, build, DevTools, screenshot, log, and manual gameplay evidence into a verification status. |
 
 ## Companion Codex Skills
 
@@ -241,8 +249,19 @@ The sequence tool preserves the provided order, resolves each PNG to its importe
 5. Call `cocos_local_create_wechat_build_config` with `startScenePath: "assets/scenes/Main.scene"`.
 6. Call `cocos_local_build_wechatgame`.
 7. Call `cocos_local_check_wechat_build_output`.
+8. Call `cocos_local_audit_runtime_package` to catch package-budget and asset-size risks before opening the simulator.
+9. Call `cocos_local_open_wechat_devtools` to open the local `build/wechatgame` output.
+10. After observing launch, first input, core loop, result/failure, restart, and logs, call `cocos_local_collect_runtime_evidence`.
 
 Cocos Creator returns exit code `36` for a successful command-line build.
+
+Use precise verification language:
+
+- Build verified: the build completed and output files passed inspection.
+- DevTools opened: WeChat DevTools accepted the local build path.
+- Runtime verified: launch, first input, core loop, result/failure, restart, logs, and screenshot or scene-summary evidence were checked.
+
+Do not describe a vertical slice as runtime-verified from build output alone.
 
 ## Editor Bridge
 

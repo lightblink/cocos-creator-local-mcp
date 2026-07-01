@@ -96,6 +96,27 @@ CocosCreator --project <projectRoot> --build "configPath=<configPath>;logDest=<l
 
 Cocos Creator returns exit code `36` for a successful build. The output checker verifies that `build/wechatgame` exists and includes required files such as `game.json` and `project.config.json`.
 
+## Runtime Verification Flow
+
+Build success, DevTools opening, and runtime gameplay verification are separate states.
+
+```text
+build output inspection -> static package audit
+  -> WeChat DevTools open or preview command
+  -> simulator observation or external evidence
+  -> cocos_local_collect_runtime_evidence
+```
+
+The runtime evidence collector records explicit gates: launch, first input, core loop, result/failure, restart, console review, and screenshot or scene-summary evidence. If the simulator was not opened, or if the gates are incomplete, the tool reports that the vertical slice is not yet runtime-verified.
+
+The WeChat helpers call the official local DevTools CLI commands for `open`, `preview`, `cache`, `close`, and `quit`. They do not perform production upload, review submission, or release operations.
+
+## Package Audit Flow
+
+`cocos_local_audit_runtime_package` inspects the local build output, and optionally the project `assets/` directory. It reports required WeChat files, package budgets, largest files, PNG dimensions, WAV metadata, oversized file risks, and first-package pressure.
+
+This is a static audit. It does not measure runtime FPS, draw calls, memory spikes, or simulator correctness. Use it before DevTools runtime checks to catch common local-play blockers early.
+
 ## Boundaries
 
 This MCP does:
@@ -106,6 +127,9 @@ This MCP does:
 - scene assembly through the editor
 - local `wechatgame` build execution
 - build output inspection
+- WeChat DevTools local open, preview, cache, close, and quit helpers
+- static runtime package audits
+- explicit vertical-slice evidence aggregation
 
 This MCP does not:
 
@@ -114,6 +138,7 @@ This MCP does not:
 - submit review or publish releases
 - manage production app credentials
 - configure payment, ads, login, or backend services
+- claim runtime verification without runtime evidence
 
 ## Safety Notes
 

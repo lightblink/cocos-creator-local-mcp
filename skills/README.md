@@ -1,12 +1,12 @@
 # Companion Codex Skills
 
-This folder contains optional Codex skills that pair with Cocos Creator Local MCP. The MCP server remains usable on its own; these skills add agent workflow guidance for Cocos gameplay implementation, scene assembly, and local WeChat Mini Game build loops.
+This folder contains optional Codex skills that pair with Cocos Creator Local MCP. The MCP server remains usable on its own; these skills add agent workflow guidance for Cocos gameplay implementation, scene assembly, local WeChat Mini Game build loops, package audits, and runtime evidence collection.
 
 ## Included Skills
 
 - [`cocos-creator-gameplay-architecture`](./cocos-creator-gameplay-architecture): implement and review Cocos Creator gameplay code, UI systems, input, state flow, resources, and runtime architecture.
 - [`cocos-scene-prefab-assembly`](./cocos-scene-prefab-assembly): assemble Cocos scenes, prefabs, components, serialized properties, and asset references into playable local scenes.
-- [`cocos-wechat-local-build`](./cocos-wechat-local-build): prepare, build, inspect, and debug local `wechatgame` packages without publishing.
+- [`cocos-wechat-local-build`](./cocos-wechat-local-build): prepare, build, inspect, audit, open, and collect runtime evidence for local `wechatgame` packages without publishing.
 
 ## Install For Codex
 

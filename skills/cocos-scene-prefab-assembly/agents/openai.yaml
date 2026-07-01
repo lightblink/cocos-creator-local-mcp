@@ -7,7 +7,7 @@ dependencies:
   tools:
     - type: "mcp"
       value: "cocos_creator_local"
-      description: "Cocos Creator Local MCP tools for project inspection, editor bridge routes, scene mutation, component attachment, and sprite placement."
+      description: "Cocos Creator Local MCP tools for project inspection, editor bridge routes, scene mutation, component attachment, sprite placement, and runtime evidence collection."
     - type: "mcp"
       value: "cocos_asset_forge"
       description: "Optional companion asset-generation MCP when generated sprites, UI art, audio, or tilesets need to be staged before scene assembly."
