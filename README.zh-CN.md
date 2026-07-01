@@ -46,6 +46,7 @@
 - [安装](#安装)
 - [MCP 客户端配置](#mcp-客户端配置)
 - [工具列表](#工具列表)
+- [配套 Codex Skills](#配套-codex-skills)
 - [从 0 到本地微信小游戏构建](#从-0-到本地微信小游戏构建)
 - [给 LLM 的安装 Prompt](./docs/installation.md#llm-install-prompt)
 - [架构说明](./docs/ARCHITECTURE.md)
@@ -162,6 +163,27 @@ npm run check
 | `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置。 |
 | `cocos_local_build_wechatgame` | 执行本地 Cocos `wechatgame` 命令行构建。 |
 | `cocos_local_check_wechat_build_output` | 检查构建输出必备文件和包体大小预警。 |
+
+## 配套 Codex Skills
+
+仓库内置了可选的 Codex skills，位于 [`skills/`](./skills)。MCP 提供可执行的本地自动化工具；skills 负责告诉 agent 什么时候、怎样使用这些工具来完成游戏架构、场景/Prefab 装配和本地微信小游戏构建。
+
+包含的 skills：
+
+- [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture)：实现可维护的 Cocos Creator 游戏脚本、UI 系统和运行时流程。
+- [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly)：把场景、Prefab、组件、序列化属性和生成素材装配成可运行的本地场景。
+- [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build)：准备、构建、检查和调试本地 `wechatgame` 包，不负责发布。
+
+安装到 Codex：
+
+```bash
+mkdir -p ~/.codex/skills
+cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
+cp -R skills/cocos-wechat-local-build ~/.codex/skills/
+```
+
+使用这些 skills 时，请同时在 MCP 客户端中配置本 server，并暴露为 `cocos_creator_local`。如果工作流还需要生成精灵图、音频、UI 包或 tileset，请搭配独立的 Cocos Asset Forge MCP。
 
 ## 从生成素材到场景
 

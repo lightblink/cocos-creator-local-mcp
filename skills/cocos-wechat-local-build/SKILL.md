@@ -1,0 +1,108 @@
+---
+name: cocos-wechat-local-build
+description: Build, inspect, and debug local Cocos Creator 3.8 WeChat Mini Game packages without publishing. Use whenever the user asks Codex to prepare a Cocos project for local wechatgame build, create or review build configs, run Cocos Creator command-line builds, inspect build/wechatgame output, check package budgets, or open/debug the result in WeChat DevTools locally.
+---
+
+# Cocos WeChat Local Build
+
+## Overview
+
+Use this skill for the local-only Cocos Creator to WeChat Mini Game loop: project readiness, build config, `wechatgame` command-line build, output inspection, and local simulator/debug preparation. Do not handle upload, review, release, payment, or production operations with this skill.
+
+Target Cocos Creator 3.8.8 when the local machine has it installed; otherwise detect the configured Creator path.
+
+## Core Workflow
+
+1. Detect environment.
+   - Prefer `cocos_local_get_environment` when the Cocos local MCP tools are available.
+   - Confirm Cocos Creator path, WeChat DevTools CLI path if needed, and target project root.
+2. Inspect the project.
+   - If starting from zero and no project exists, use `cocos_local_create_project` to create a Cocos Creator 3.8 project from the built-in `empty-2d` template and create `assets/scenes/Main.scene` before build preparation.
+   - Use `cocos_local_inspect_project` when available.
+   - Check for `assets/`, `settings/`, scenes, scripts, existing build output, and project metadata.
+3. Prepare build config.
+   - For generated starter projects, use `cocos_local_open_project`, `cocos_local_wait_for_editor_bridge`, and `cocos_local_apply_scene_blueprint` to prepare an active saved scene before creating the final build config.
+   - Use `cocos_local_create_wechat_build_config` for a reproducible config JSON.
+   - When a scene asset is known, pass `startScenePath` such as `assets/scenes/Main.scene` so the MCP reads the UUID from the `.meta` file.
+   - Use placeholder appid only for local non-platform gameplay checks; ask for a real appid before testing WeChat APIs.
+4. Build locally.
+   - Use `cocos_local_build_wechatgame` with `configPath` when available.
+   - Prefer dry run first when the project, appid, or Creator path is uncertain.
+5. Inspect output.
+   - Use `cocos_local_check_wechat_build_output` for required files and package budget warnings.
+   - Confirm `game.json` and `project.config.json` exist under the built `wechatgame` folder.
+6. Report next local debug steps.
+   - Give exact output path and any WeChat DevTools opening step still needed.
+
+## Cocos Command-Line Build Shape
+
+Cocos Creator 3.8 command-line builds use:
+
+```bash
+CocosCreator --project <projectRoot> --build "platform=wechatgame;debug=true"
+```
+
+or a build panel/exported JSON config:
+
+```bash
+CocosCreator --project <projectRoot> --build "configPath=<path-to-build-config.json>"
+```
+
+Use the config file path for repeatable local builds, because it can preserve platform package settings such as `packages.wechatgame.appid`.
+
+## Build Config Guidance
+
+For local development builds:
+
+- `platform`: `wechatgame`
+- `taskName` / `outputName`: usually `wechatgame`
+- `debug`: `true` until release preparation
+- `md5Cache`: usually `false` for fast local iteration
+- `buildPath`: usually `project://build`
+- `packages.wechatgame.appid`: real appid for platform API testing, placeholder only for pure local gameplay work
+
+Do not overwrite an existing build config unless the user asks or the file is clearly generated for Codex-owned local builds.
+
+## Output Checks
+
+After a build, inspect:
+
+- `build/wechatgame/`
+- `game.json`
+- `project.config.json`
+- largest files and total size
+- obvious missing assets or empty build output
+- Cocos build exit code and log tail
+
+Treat Cocos exit code `36` as build success. Treat `32` as invalid build parameters and `34` as an unexpected build failure that needs log inspection.
+
+## Package Budget Guardrails
+
+For WeChat Mini Game local builds, warn early when output size suggests package problems:
+
+- main package budget: 4 MB
+- total package budget: 20 MB
+
+If the whole `build/wechatgame` folder exceeds 4 MB, do not automatically fail the build; report that subpackage split sizes need inspection. Recommend Asset Bundles or remote/late-loaded resources for optional content.
+
+## Local Debug Boundary
+
+This skill may prepare or open local WeChat DevTools workflows, but must not:
+
+- upload code
+- create release candidates
+- submit for review
+- manage production app credentials
+- change payment, ads, or backend configuration without an explicit task
+
+## Output Standard
+
+When completing a local build task, report:
+
+- detected Creator path and project root
+- build config path and important settings
+- exact build command or dry-run command
+- build exit code and meaning
+- output directory and required file status
+- package-size warnings
+- next local simulator step, if still manual

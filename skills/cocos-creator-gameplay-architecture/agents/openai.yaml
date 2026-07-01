@@ -1,0 +1,13 @@
+interface:
+  display_name: "Cocos Creator Gameplay Architecture"
+  short_description: "Build maintainable Cocos Creator gameplay"
+  default_prompt: "Use $cocos-creator-gameplay-architecture to implement Cocos Creator 3.8 gameplay code, components, UI, and runtime systems."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "cocos_creator_local"
+      description: "Cocos Creator Local MCP tools for project creation, component scripts, editor bridge workflows, scene blueprints, and local builds."
+    - type: "mcp"
+      value: "cocos_asset_forge"
+      description: "Optional companion asset-generation MCP for sprites, audio, UI packs, and tilesets."

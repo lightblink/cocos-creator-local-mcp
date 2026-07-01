@@ -45,6 +45,7 @@ It is designed for agent-driven development on a developer machine where Cocos C
 - [Install](#install)
 - [MCP Client Config](#mcp-client-config)
 - [Tools](#tools)
+- [Companion Codex Skills](#companion-codex-skills)
 - [From Zero To Local WeChat Build](#from-zero-to-local-wechat-build)
 - [LLM Install Prompt](./docs/installation.md#llm-install-prompt)
 - [Architecture](./docs/ARCHITECTURE.md)
@@ -161,6 +162,27 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config. |
 | `cocos_local_build_wechatgame` | Run a local Cocos `wechatgame` command-line build. |
 | `cocos_local_check_wechat_build_output` | Inspect build output for required files and size warnings. |
+
+## Companion Codex Skills
+
+This repository includes optional Codex skills under [`skills/`](./skills). The MCP provides executable local automation tools; the skills teach an agent when and how to use those tools for game architecture, scene/prefab assembly, and local WeChat Mini Game builds.
+
+Included skills:
+
+- [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture): build maintainable Cocos Creator gameplay code, UI systems, and runtime flow.
+- [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly): wire scenes, prefabs, components, serialized properties, and generated assets into playable local scenes.
+- [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build): prepare, build, inspect, and debug local `wechatgame` packages without publishing.
+
+To install them for Codex:
+
+```bash
+mkdir -p ~/.codex/skills
+cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
+cp -R skills/cocos-wechat-local-build ~/.codex/skills/
+```
+
+Use these skills together with an MCP client entry that exposes this server as `cocos_creator_local`. If your workflow also generates sprites, audio, UI packs, or tilesets, pair this server with the separate Cocos Asset Forge MCP.
 
 ## Generated Assets To Scene
 

@@ -13,6 +13,7 @@
     "docs/*.md",
     "docs/assets/*.webp",
     "examples",
+    "skills",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "SECURITY.md",

@@ -1,0 +1,13 @@
+interface:
+  display_name: "Cocos Scene Prefab Assembly"
+  short_description: "Wire Cocos scenes, prefabs, and components"
+  default_prompt: "Use $cocos-scene-prefab-assembly to assemble Cocos Creator scenes, prefabs, components, and asset references into a playable local scene."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "cocos_creator_local"
+      description: "Cocos Creator Local MCP tools for project inspection, editor bridge routes, scene mutation, component attachment, and sprite placement."
+    - type: "mcp"
+      value: "cocos_asset_forge"
+      description: "Optional companion asset-generation MCP when generated sprites, UI art, audio, or tilesets need to be staged before scene assembly."
