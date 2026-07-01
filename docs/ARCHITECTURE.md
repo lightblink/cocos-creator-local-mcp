@@ -43,6 +43,7 @@ The bridge supports operations such as:
 - component attachment
 - simple component property assignment
 - node and asset reference assignment
+- generated SpriteFrame placement on scene nodes
 - scene blueprint application
 - scene save
 
@@ -57,6 +58,19 @@ Generated starter projects include:
 ```
 
 The blueprint describes desired scene nodes, components, direct properties, and serialized references. The MCP opens the target scene, sends the blueprint to the bridge, applies it in the Cocos scene context, and saves only after the apply call reports success.
+
+## Generated Sprite Placement
+
+The high-level sprite placement tools are thin wrappers over AssetDB lookup and scene blueprint application:
+
+```text
+asset path or uuid -> AssetDB info -> SpriteFrame uuid
+  -> blueprint node with Sprite component
+  -> Sprite.spriteFrame asset property
+  -> scene save
+```
+
+This keeps asset generation outside this MCP while still making the generated files easy to place into a live Cocos scene.
 
 ## WeChat Build Flow
 

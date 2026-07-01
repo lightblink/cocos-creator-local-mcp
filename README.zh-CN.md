@@ -35,6 +35,7 @@
 - 安装项目级 Editor Bridge，用于场景检查和修改。
 - 生成小游戏起步脚本和场景装配蓝图。
 - 通过桥接打开场景、创建节点、挂组件、设置属性并保存。
+- 提供高层 Sprite 放置工具，把生成素材直接挂进场景。
 - 生成可复用的 `wechatgame` 构建配置。
 - 调用 Cocos Creator 命令行执行本地构建。
 - 检查微信小游戏输出目录、必备文件和包体大小预警。
@@ -154,9 +155,41 @@ npm run check
 | `cocos_local_call_editor_bridge` | 直接调用 bridge HTTP 路由。 |
 | `cocos_local_open_scene` | 在运行中的 Cocos 编辑器里打开场景。 |
 | `cocos_local_apply_scene_blueprint` | 通过 bridge 应用场景蓝图并可保存。 |
+| `cocos_local_assign_sprite_frame` | 把解析到的 SpriteFrame 资源赋给已有节点的 `Sprite.spriteFrame`。 |
+| `cocos_local_create_sprite_node` | 确保一个 Sprite 节点存在，并赋予生成的 SpriteFrame 素材。 |
+| `cocos_local_place_sprite_assets` | 一次性把多个生成 sprite 素材放进场景。 |
 | `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置。 |
 | `cocos_local_build_wechatgame` | 执行本地 Cocos `wechatgame` 命令行构建。 |
 | `cocos_local_check_wechat_build_output` | 检查构建输出必备文件和包体大小预警。 |
+
+## 从生成素材到场景
+
+和素材生成 MCP 搭配使用时，建议把生成的 PNG 写到 Cocos 项目的 `assets/` 目录下，等待 Cocos AssetDB 导入完成，再用 `cocos_local_place_sprite_assets` 放入场景。
+
+示例：
+
+```json
+{
+  "projectRoot": "/absolute/path/to/my-cocos-project",
+  "openScene": true,
+  "sprites": [
+    {
+      "assetPath": "assets/generated/background.png",
+      "nodePath": "Scene/Canvas/GameRoot/Background",
+      "position": { "x": 0, "y": 0, "z": -10 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    },
+    {
+      "assetPath": "assets/generated/player.png",
+      "nodePath": "Scene/Canvas/GameRoot/Player",
+      "position": { "x": 0, "y": -120, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    }
+  ]
+}
+```
+
+`assetPath` 支持 `db://assets/...`、`assets/...`、项目内绝对路径或 SpriteFrame UUID。工具会查询 AssetDB，并优先选择 SpriteFrame sub-asset 赋给 `Sprite.spriteFrame`。
 
 ## 从 0 到本地微信小游戏构建
 

@@ -35,6 +35,7 @@ It is designed for agent-driven development on a developer machine where Cocos C
 - Project-local editor bridge extension for scene inspection and mutation.
 - Generated mini-game starter scripts and scene blueprints.
 - Scene opening, node creation, component attachment, property assignment, and save operations through the bridge.
+- High-level sprite placement helpers for generated Cocos assets.
 - Repeatable `wechatgame` build configuration and command-line build execution.
 - Output checks for required WeChat Mini Game files and package-size warnings.
 - Clean responsibility boundary: this MCP automates Cocos locally; asset generation belongs in a separate asset MCP.
@@ -153,9 +154,41 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_call_editor_bridge` | Call a bridge HTTP route directly. |
 | `cocos_local_open_scene` | Open a scene in the running Cocos editor. |
 | `cocos_local_apply_scene_blueprint` | Apply a scene blueprint through the bridge and optionally save. |
+| `cocos_local_assign_sprite_frame` | Assign a resolved SpriteFrame asset to an existing node's `Sprite.spriteFrame`. |
+| `cocos_local_create_sprite_node` | Ensure one Sprite node exists and assign a generated SpriteFrame asset. |
+| `cocos_local_place_sprite_assets` | Place multiple generated sprite assets into the scene in one operation. |
 | `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config. |
 | `cocos_local_build_wechatgame` | Run a local Cocos `wechatgame` command-line build. |
 | `cocos_local_check_wechat_build_output` | Inspect build output for required files and size warnings. |
+
+## Generated Assets To Scene
+
+When paired with an asset generation MCP, write generated PNGs under the Cocos project `assets/` folder, wait for Cocos AssetDB import, then place them with `cocos_local_place_sprite_assets`.
+
+Example sprite placement payload:
+
+```json
+{
+  "projectRoot": "/absolute/path/to/my-cocos-project",
+  "openScene": true,
+  "sprites": [
+    {
+      "assetPath": "assets/generated/background.png",
+      "nodePath": "Scene/Canvas/GameRoot/Background",
+      "position": { "x": 0, "y": 0, "z": -10 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    },
+    {
+      "assetPath": "assets/generated/player.png",
+      "nodePath": "Scene/Canvas/GameRoot/Player",
+      "position": { "x": 0, "y": -120, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 }
+    }
+  ]
+}
+```
+
+`assetPath` accepts `db://assets/...`, `assets/...`, an absolute project path, or a SpriteFrame UUID. The tool resolves AssetDB info and prefers SpriteFrame sub-assets when assigning `Sprite.spriteFrame`.
 
 ## From Zero To Local WeChat Build
 

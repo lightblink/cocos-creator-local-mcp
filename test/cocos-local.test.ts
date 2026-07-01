@@ -41,6 +41,8 @@ describe("cocos local editor bridge scaffold", () => {
     expect(byPath.get("scene.js")).toContain("ensureNodePath");
     expect(byPath.get("scene.js")).toContain("normalizeSceneQuery");
     expect(byPath.get("scene.js")).toContain("getClassByName");
+    expect(byPath.get("scene.js")).toContain("assetProperties");
+    expect(byPath.get("scene.js")).toContain("loadAssetByUuid");
   });
 });
 

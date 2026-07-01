@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, cp, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
@@ -153,6 +153,56 @@ const openSceneInput = z.object({
   timeoutMs: z.number().int().positive().max(60000).default(30000)
 });
 
+const vec3Input = z.object({
+  x: z.number().default(0),
+  y: z.number().default(0),
+  z: z.number().default(0)
+});
+
+const spriteAssetPlacementInput = z.object({
+  assetPath: z.string().min(1).describe("Sprite asset reference: db://assets/..., assets/..., absolute project path, or a SpriteFrame UUID."),
+  nodePath: z.string().optional().describe("Full node path to ensure, e.g. Scene/Canvas/GameRoot/Player."),
+  parentPath: z.string().default("Scene/Canvas/GameRoot"),
+  name: z.string().optional(),
+  position: vec3Input.default({ x: 0, y: 0, z: 0 }),
+  scale: vec3Input.default({ x: 1, y: 1, z: 1 }),
+  active: z.boolean().default(true)
+});
+
+const assignSpriteFrameInput = z.object({
+  projectRoot: z.string().min(1),
+  nodePath: z.string().min(1).describe("Existing scene node path, e.g. Scene/Canvas/GameRoot/Player."),
+  assetPath: z.string().min(1).describe("Sprite asset reference: db://assets/..., assets/..., absolute project path, or a SpriteFrame UUID."),
+  scenePath: z.string().default("assets/scenes/Main.scene"),
+  openScene: z.boolean().default(false),
+  addSpriteComponent: z.boolean().default(true),
+  port: z.number().int().min(1024).max(65535).default(17388),
+  timeoutMs: z.number().int().positive().max(120000).default(30000),
+  saveScene: z.boolean().default(true)
+});
+
+const createSpriteNodeInput = z.object({
+  projectRoot: z.string().min(1),
+  scenePath: z.string().default("assets/scenes/Main.scene"),
+  openScene: z.boolean().default(false),
+  openSceneDelayMs: z.number().int().min(0).max(30000).default(1000),
+  sprite: spriteAssetPlacementInput,
+  port: z.number().int().min(1024).max(65535).default(17388),
+  timeoutMs: z.number().int().positive().max(120000).default(30000),
+  saveScene: z.boolean().default(true)
+});
+
+const placeSpriteAssetsInput = z.object({
+  projectRoot: z.string().min(1),
+  scenePath: z.string().default("assets/scenes/Main.scene"),
+  openScene: z.boolean().default(false),
+  openSceneDelayMs: z.number().int().min(0).max(30000).default(1000),
+  sprites: z.array(spriteAssetPlacementInput).min(1).max(64),
+  port: z.number().int().min(1024).max(65535).default(17388),
+  timeoutMs: z.number().int().positive().max(120000).default(30000),
+  saveScene: z.boolean().default(true)
+});
+
 export function registerCocosLocalTools(server: McpServer): void {
   server.registerTool("cocos_local_get_environment", {
     title: "Get Local Cocos Environment",
@@ -249,6 +299,24 @@ export function registerCocosLocalTools(server: McpServer): void {
     description: "Open a Cocos Creator scene asset in the running editor through the Codex editor bridge.",
     inputSchema: openSceneInput
   }, async (input) => textResult(await openScene(input)));
+
+  server.registerTool("cocos_local_assign_sprite_frame", {
+    title: "Assign SpriteFrame",
+    description: "Resolve a Cocos asset path or SpriteFrame UUID and assign it to an existing node's Sprite.spriteFrame property.",
+    inputSchema: assignSpriteFrameInput
+  }, async (input) => textResult(await assignSpriteFrame(input)));
+
+  server.registerTool("cocos_local_create_sprite_node", {
+    title: "Create Sprite Node",
+    description: "Ensure a scene node exists, attach a Sprite component, resolve a SpriteFrame asset, assign it, and optionally save the scene.",
+    inputSchema: createSpriteNodeInput
+  }, async (input) => textResult(await createSpriteNode(input)));
+
+  server.registerTool("cocos_local_place_sprite_assets", {
+    title: "Place Sprite Assets",
+    description: "Place multiple generated sprite assets into the active Cocos scene as Sprite nodes in one bridge operation.",
+    inputSchema: placeSpriteAssetsInput
+  }, async (input) => textResult(await placeSpriteAssets(input)));
 }
 
 async function getEnvironment(input: z.infer<typeof getEnvironmentInput>) {
@@ -926,6 +994,240 @@ async function openScene(input: z.infer<typeof openSceneInput>) {
     notes: [
       "If the scene remains inactive immediately after opening, wait briefly and call /scene/summary before applying a blueprint."
     ]
+  };
+}
+
+async function assignSpriteFrame(input: z.infer<typeof assignSpriteFrameInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  let opened: unknown = null;
+  if (input.openScene) {
+    opened = await openScene({
+      projectRoot,
+      scenePath: input.scenePath,
+      port: input.port,
+      timeoutMs: input.timeoutMs
+    });
+  }
+  if (input.addSpriteComponent) {
+    const addComponent = await callEditorBridge({
+      port: input.port,
+      route: "/scene/add-component",
+      method: "POST",
+      body: {
+        path: input.nodePath,
+        type: "Sprite"
+      },
+      timeoutMs: input.timeoutMs
+    });
+    if (!isBridgeCallSuccessful(addComponent)) {
+      return {
+        projectRoot,
+        nodePath: input.nodePath,
+        opened,
+        addedSpriteComponent: addComponent,
+        assigned: null,
+        saved: null,
+        ok: false,
+        notes: [
+          "Could not add or find a Sprite component before assignment.",
+          "Make sure the scene is open and the node path exists."
+        ]
+      };
+    }
+  }
+  const resolved = await resolveSpriteFrameAsset({
+    projectRoot,
+    assetPath: input.assetPath,
+    port: input.port,
+    timeoutMs: input.timeoutMs
+  });
+  const assigned = await callEditorBridge({
+    port: input.port,
+    route: "/scene/set-component-asset-property",
+    method: "POST",
+    body: {
+      nodePath: input.nodePath,
+      componentType: "Sprite",
+      property: "spriteFrame",
+      assetUuid: resolved.spriteFrameUuid
+    },
+    timeoutMs: input.timeoutMs
+  });
+  let saved: unknown = null;
+  if (input.saveScene && isBridgeCallSuccessful(assigned)) {
+    saved = await saveSceneThroughBridge(input.port, input.timeoutMs);
+  }
+  return {
+    projectRoot,
+    nodePath: input.nodePath,
+    assetPath: input.assetPath,
+    opened,
+    resolvedAsset: resolved,
+    assigned,
+    saved,
+    ok: isBridgeCallSuccessful(assigned),
+    notes: [
+      "This tool assigns a SpriteFrame to Sprite.spriteFrame. If the asset was just generated, wait for Cocos AssetDB import before retrying."
+    ]
+  };
+}
+
+async function createSpriteNode(input: z.infer<typeof createSpriteNodeInput>) {
+  const result = await placeSpriteAssets({
+    projectRoot: input.projectRoot,
+    scenePath: input.scenePath,
+    openScene: input.openScene,
+    openSceneDelayMs: input.openSceneDelayMs,
+    sprites: [input.sprite],
+    port: input.port,
+    timeoutMs: input.timeoutMs,
+    saveScene: input.saveScene
+  });
+  return {
+    ...result,
+    sprite: result.sprites[0] ?? null
+  };
+}
+
+async function placeSpriteAssets(input: z.infer<typeof placeSpriteAssetsInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  let opened: unknown = null;
+  if (input.openScene) {
+    opened = await openScene({
+      projectRoot,
+      scenePath: input.scenePath,
+      port: input.port,
+      timeoutMs: input.timeoutMs
+    });
+    if (input.openSceneDelayMs > 0) {
+      await delay(input.openSceneDelayMs);
+    }
+  }
+
+  const resolvedSprites = [];
+  const nodes = [];
+  for (const sprite of input.sprites) {
+    const resolved = await resolveSpriteFrameAsset({
+      projectRoot,
+      assetPath: sprite.assetPath,
+      port: input.port,
+      timeoutMs: input.timeoutMs
+    });
+    const nodePath = sprite.nodePath ?? makeChildNodePath(sprite.parentPath, sprite.name ?? inferNodeNameFromAsset(sprite.assetPath));
+    resolvedSprites.push({
+      ...sprite,
+      nodePath,
+      resolvedAsset: resolved
+    });
+    nodes.push({
+      path: nodePath,
+      active: sprite.active,
+      position: sprite.position,
+      scale: sprite.scale,
+      components: [
+        {
+          type: "Sprite",
+          assetProperties: {
+            spriteFrame: resolved.spriteFrameUuid
+          }
+        }
+      ]
+    });
+  }
+
+  const blueprint = {
+    name: "Placed Sprite Assets",
+    applyWith: "POST /scene/apply-blueprint",
+    nodes
+  };
+  const applied = await callEditorBridge({
+    port: input.port,
+    route: "/scene/apply-blueprint",
+    method: "POST",
+    body: { blueprint },
+    timeoutMs: input.timeoutMs
+  });
+  let saved: unknown = null;
+  if (input.saveScene && isBridgeCallSuccessful(applied)) {
+    saved = await saveSceneThroughBridge(input.port, input.timeoutMs);
+  }
+
+  return {
+    projectRoot,
+    scenePath: input.scenePath,
+    opened,
+    sprites: resolvedSprites,
+    blueprint,
+    applied,
+    saved,
+    ok: isBridgeCallSuccessful(applied),
+    notes: [
+      "This creates or reuses scene nodes and assigns generated assets as Sprite.spriteFrame references.",
+      "If AssetDB cannot resolve a fresh PNG, wait for Cocos Creator to finish importing assets and retry."
+    ]
+  };
+}
+
+async function saveSceneThroughBridge(port: number, timeoutMs: number) {
+  return callEditorBridge({
+    port,
+    route: "/scene/save",
+    method: "POST",
+    body: {},
+    timeoutMs
+  });
+}
+
+async function resolveSpriteFrameAsset(input: {
+  projectRoot: string;
+  assetPath: string;
+  port: number;
+  timeoutMs: number;
+}) {
+  if (looksLikeUuid(input.assetPath)) {
+    return {
+      input: input.assetPath,
+      spriteFrameUuid: input.assetPath,
+      assetUrl: null,
+      assetInfo: null,
+      warnings: ["Input was treated as a SpriteFrame UUID without AssetDB verification."]
+    };
+  }
+
+  const assetUrl = normalizeAssetReference(input.projectRoot, input.assetPath);
+  const assetInfoResponse = await callEditorBridge({
+    port: input.port,
+    route: "/assets/info",
+    method: "POST",
+    body: { urlOrUuid: assetUrl },
+    timeoutMs: input.timeoutMs
+  });
+  if (!isBridgeCallSuccessful(assetInfoResponse)) {
+    throw new Error(`AssetDB could not resolve ${assetUrl}: ${JSON.stringify(assetInfoResponse)}`);
+  }
+  const assetInfo = extractEditorResult(assetInfoResponse);
+  const spriteFrameUuid = findSpriteFrameUuid(assetInfo);
+  const warnings: string[] = [];
+  if (!spriteFrameUuid) {
+    const fallbackUuid = findFirstUuid(assetInfo);
+    if (!fallbackUuid) {
+      throw new Error(`AssetDB info did not include a SpriteFrame UUID for ${assetUrl}.`);
+    }
+    warnings.push("Could not identify a SpriteFrame sub-asset explicitly; falling back to the first UUID in AssetDB info.");
+    return {
+      input: input.assetPath,
+      assetUrl,
+      spriteFrameUuid: fallbackUuid,
+      assetInfo,
+      warnings
+    };
+  }
+  return {
+    input: input.assetPath,
+    assetUrl,
+    spriteFrameUuid,
+    assetInfo,
+    warnings
   };
 }
 
@@ -2099,6 +2401,91 @@ function sanitizeClassName(value: string): string {
 function toAssetDbUrl(projectRoot: string, filePath: string): string {
   const relative = filePath.slice(resolve(projectRoot).length + 1).replaceAll("\\", "/");
   return `db://${relative}`;
+}
+
+function normalizeAssetReference(projectRoot: string, assetPath: string): string {
+  const normalized = assetPath.replaceAll("\\", "/");
+  if (normalized.startsWith("db://")) return normalized;
+  if (normalized.startsWith("assets/")) return `db://${normalized}`;
+  if (normalized.startsWith("/")) return toAssetDbUrl(projectRoot, resolve(assetPath));
+  return `db://assets/${normalized.replace(/^\/+/, "")}`;
+}
+
+function looksLikeUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    || /^[0-9A-Za-z+/]{20,32}$/.test(value);
+}
+
+function makeChildNodePath(parentPath: string, name: string): string {
+  return `${parentPath.replace(/\/+$/, "")}/${name.replace(/^\/+/, "")}`;
+}
+
+function inferNodeNameFromAsset(assetPath: string): string {
+  const withoutQuery = assetPath.split(/[?#]/)[0] ?? assetPath;
+  const base = basename(withoutQuery, extname(withoutQuery));
+  const clean = base.replace(/[^A-Za-z0-9_ -]+/g, " ").trim();
+  if (!clean) return "Sprite";
+  return clean
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join("");
+}
+
+function extractEditorResult(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const outer = value as { response?: unknown };
+  const response = outer.response;
+  if (!response || typeof response !== "object") return response ?? value;
+  const inner = response as { result?: unknown };
+  return inner.result ?? response;
+}
+
+function findSpriteFrameUuid(value: unknown): string | null {
+  const match = findInUnknown(value, (candidate) => {
+    const type = stringifyUnknown(candidate.type ?? candidate.importer ?? candidate.ctor ?? candidate.__type__ ?? candidate.name);
+    const url = stringifyUnknown(candidate.url ?? candidate.path);
+    const displayName = stringifyUnknown(candidate.displayName ?? candidate.name);
+    const looksSpriteFrame = /sprite[\s_-]*frame/i.test(`${type} ${url} ${displayName}`);
+    const uuid = stringifyUnknown(candidate.uuid ?? candidate.__uuid__ ?? nestedUuid(candidate.value));
+    return looksSpriteFrame && uuid ? uuid : null;
+  });
+  return match;
+}
+
+function findFirstUuid(value: unknown): string | null {
+  return findInUnknown(value, (candidate) => stringifyUnknown(candidate.uuid ?? candidate.__uuid__) || null);
+}
+
+function nestedUuid(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return stringifyUnknown(record.uuid ?? record.__uuid__);
+}
+
+function findInUnknown(value: unknown, pick: (candidate: Record<string, unknown>) => string | null): string | null {
+  const seen = new Set<unknown>();
+  const queue: unknown[] = [value];
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== "object" || seen.has(current)) continue;
+    seen.add(current);
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    const record = current as Record<string, unknown>;
+    const picked = pick(record);
+    if (picked) return picked;
+    for (const nested of Object.values(record)) {
+      if (nested && typeof nested === "object") queue.push(nested);
+    }
+  }
+  return null;
+}
+
+function stringifyUnknown(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function cocosCreatorTemplatesDir(creatorPath: string): string {
