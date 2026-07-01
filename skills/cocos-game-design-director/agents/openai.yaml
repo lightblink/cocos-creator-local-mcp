@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cocos Game Design Director"
+  short_description: "Direct Cocos game design from idea to MVP"
+  default_prompt: "Use $cocos-game-design-director to turn this Cocos Creator WeChat Mini Game idea into an implementation-facing MVP brief."

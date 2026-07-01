@@ -179,8 +179,11 @@ This repository includes optional Codex skills under [`skills/`](./skills). The 
 Included skills:
 
 - [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture): build maintainable Cocos Creator gameplay code, UI systems, and runtime flow.
+- [`cocos-game-balance-director`](./skills/cocos-game-balance-director): design tunable numbers, probability tables, economy loops, progression curves, and balance sanity checks.
+- [`cocos-game-design-director`](./skills/cocos-game-design-director): turn a Cocos mini-game idea into a playable design brief, core loop, vertical slice, and downstream handoffs.
 - [`cocos-game-reference-research-director`](./skills/cocos-game-reference-research-director): research reference games, genre expectations, IP-safe design pillars, and downstream handoffs before planning.
 - [`cocos-interaction-ux-director`](./skills/cocos-interaction-ux-director): define touch-first controls, HUD states, feedback, readability, and adaptive layout requirements.
+- [`cocos-level-content-design`](./skills/cocos-level-content-design): design levels, waves, missions, procedural rules, pacing, and reusable content data.
 - [`cocos-playtest-qa-director`](./skills/cocos-playtest-qa-director): plan playtest gates, collect runtime evidence, and verify whether local playability claims are supported.
 - [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly): wire scenes, prefabs, components, serialized properties, and generated assets into playable local scenes.
 - [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build): prepare, build, inspect, and debug local `wechatgame` packages without publishing.
@@ -190,8 +193,11 @@ To install them for Codex:
 ```bash
 mkdir -p ~/.codex/skills
 cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-game-balance-director ~/.codex/skills/
+cp -R skills/cocos-game-design-director ~/.codex/skills/
 cp -R skills/cocos-game-reference-research-director ~/.codex/skills/
 cp -R skills/cocos-interaction-ux-director ~/.codex/skills/
+cp -R skills/cocos-level-content-design ~/.codex/skills/
 cp -R skills/cocos-playtest-qa-director ~/.codex/skills/
 cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
 cp -R skills/cocos-wechat-local-build ~/.codex/skills/

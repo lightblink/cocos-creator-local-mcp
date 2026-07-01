@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cocos Level Content Design"
+  short_description: "Design Cocos levels and content pacing"
+  default_prompt: "Use $cocos-level-content-design to plan Cocos level, wave, and content progression data for this mini-game."

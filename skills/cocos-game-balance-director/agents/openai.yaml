@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cocos Game Balance Director"
+  short_description: "Tune Cocos game balance and economy"
+  default_prompt: "Use $cocos-game-balance-director to design v0 balance tables and tuning targets for this Cocos mini-game."

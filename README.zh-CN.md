@@ -180,8 +180,11 @@ npm run check
 包含的 skills：
 
 - [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture)：实现可维护的 Cocos Creator 游戏脚本、UI 系统和运行时流程。
+- [`cocos-game-balance-director`](./skills/cocos-game-balance-director)：设计可调数值、概率表、经济循环、成长曲线和数值 sanity check。
+- [`cocos-game-design-director`](./skills/cocos-game-design-director)：把 Cocos 小游戏想法转成可玩的设计简报、核心循环、垂直切片和后续交接。
 - [`cocos-game-reference-research-director`](./skills/cocos-game-reference-research-director)：在策划前调研参考游戏、品类预期、IP 安全设计支柱和后续 skill 交接。
 - [`cocos-interaction-ux-director`](./skills/cocos-interaction-ux-director)：定义触屏优先的操作、HUD 状态、反馈、可读性和自适应布局要求。
+- [`cocos-level-content-design`](./skills/cocos-level-content-design)：设计关卡、波次、任务、程序化规则、节奏和可复用内容数据。
 - [`cocos-playtest-qa-director`](./skills/cocos-playtest-qa-director)：规划试玩验收门槛、收集运行时证据，并验证本地可玩性结论是否成立。
 - [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly)：把场景、Prefab、组件、序列化属性和生成素材装配成可运行的本地场景。
 - [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build)：准备、构建、检查和调试本地 `wechatgame` 包，不负责发布。
@@ -191,8 +194,11 @@ npm run check
 ```bash
 mkdir -p ~/.codex/skills
 cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-game-balance-director ~/.codex/skills/
+cp -R skills/cocos-game-design-director ~/.codex/skills/
 cp -R skills/cocos-game-reference-research-director ~/.codex/skills/
 cp -R skills/cocos-interaction-ux-director ~/.codex/skills/
+cp -R skills/cocos-level-content-design ~/.codex/skills/
 cp -R skills/cocos-playtest-qa-director ~/.codex/skills/
 cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
 cp -R skills/cocos-wechat-local-build ~/.codex/skills/
