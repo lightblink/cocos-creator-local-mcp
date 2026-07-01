@@ -25,6 +25,7 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
    - Define an asset policy for the slice: generated/staged assets through `cocos-asset-pipeline-director`, existing project assets, or deliberate engine-geometry placeholders. For from-zero mini-games, prefer a minimal generated placeholder pack when the asset MCP is available.
    - For generated gameplay assets, require an asset review handoff before wiring: role, orientation, alpha/silhouette quality, mobile readability, animation readiness, and collision fit. Use `cocos-asset-review-director` when available.
    - For games where motion carries readability or feel, define an animation/VFX contract before implementation: which actors need sprite sheets, state frames, one-shot effects, loops, and Cocos `AnimationClip` or frame-sequence playback.
+   - For gameplay randomness, define a runtime randomization contract before implementation: which outcomes are random, what data drives them, whether a seed is needed, and what system owns reproducibility and tuning.
    - Keep a small vertical slice playable before adding breadth.
    - For a new mini-game prototype, use `cocos_local_create_minigame_skeleton` when available to create a baseline GameManager, HUD, input, player controller, pool manager, and starter scene blueprint.
    - For non-trivial games, consider `cocos_local_create_architecture_skeleton` when available before feature scripts. Use its preset as a starting point to prune, merge, or rename systems according to the actual design, then create thin Cocos Components that host or adapt the chosen systems.
@@ -59,6 +60,8 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Prefer Cocos `Component` classes as scene adapters: they own node references, lifecycle hooks, and serialized properties, then delegate durable game rules to systems when the behavior is likely to grow.
 - Let systems own coherent domain behavior: combat, damage, targeting, movement, waves, economy, scoring, progression, input normalization, UI coordination, asset loading, or audio routing. Merge small systems when separation would add ceremony without reducing complexity.
 - Let data/config modules own tunable values, formulas, tables, tags, and IDs once values need tuning or reuse. Early constants are acceptable when they are few, named, and easy to move.
+- Put random gameplay behind explicit services or systems such as `RngService`, `RandomSystem`, `WeightedTable`, `LootTable`, `EventPool`, or `ProcGenSystem` when outcomes affect combat, rewards, spawning, maps, events, or fairness. Avoid scattering `Math.random()` and inline probability thresholds across Cocos Components.
+- Make important random systems seedable or otherwise reproducible for debugging and QA. Keep weights, chances, pools, pity rules, and constraints in config/data modules rather than hardcoded control flow.
 - Use an event bus, command queue, or explicit method boundary for cross-system communication. Avoid circular imports and direct mutation across unrelated systems.
 - Keep system update order explicit when multiple systems run per frame.
 - Use object pools for frequent runtime objects and keep spawn/despawn ownership clear.
@@ -125,4 +128,5 @@ When completing a gameplay task, report:
 - Layout contract: target device/orientation, design resolution, fit policy, safe-area behavior, and any responsive layout controller or anchors used.
 - Asset policy: generated/staged/imported assets used, deliberate placeholder geometry, pending sprites/UI/SFX/music, and the reason for any skipped asset class.
 - Animation/VFX policy: sequence assets used or missing, playback system or Cocos animation components created, and any deferred effects that block production readiness.
+- Randomization policy: RNG ownership, seed/replay strategy, config tables, weighted pools, procedural constraints, and any deliberate simple random shortcuts kept for greybox scope.
 - Verification performed and remaining editor/build steps.
