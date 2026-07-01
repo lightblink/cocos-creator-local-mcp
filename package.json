@@ -1,0 +1,62 @@
+{
+  "name": "cocos-creator-local-mcp",
+  "version": "0.1.0",
+  "description": "An MCP server for local Cocos Creator project automation, scene assembly, and WeChat Mini Game builds.",
+  "type": "module",
+  "bin": {
+    "cocos-creator-local-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "docs/*.md",
+    "docs/assets/*.webp",
+    "examples",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm test && npm run build",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cocos",
+    "cocos-creator",
+    "wechatgame",
+    "mini-game",
+    "editor-automation"
+  ],
+  "author": "lightblink",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lightblink/cocos-creator-local-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lightblink/cocos-creator-local-mcp/issues"
+  },
+  "homepage": "https://github.com/lightblink/cocos-creator-local-mcp#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.2",
+    "commander": "^14.0.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

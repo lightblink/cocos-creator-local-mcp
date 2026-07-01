@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cocos-creator-local": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/cocos-creator-local-mcp/dist/index.js"
+      ],
+      "startup_timeout_sec": 120
+    }
+  }
+}
