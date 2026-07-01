@@ -181,6 +181,20 @@ const assignSpriteFrameInput = z.object({
   saveScene: z.boolean().default(true)
 });
 
+const assignSpriteFrameSequenceInput = z.object({
+  projectRoot: z.string().min(1),
+  nodePath: z.string().min(1).describe("Existing scene node path, e.g. Scene/Canvas/GameRoot/Player."),
+  assetPaths: z.array(z.string().min(1)).min(1).max(128).describe("Ordered frame references: db://assets/..., assets/..., absolute project paths, or SpriteFrame UUIDs."),
+  componentType: z.string().min(1).default("SpriteFrameAnimator"),
+  property: z.string().min(1).default("frames"),
+  scenePath: z.string().default("assets/scenes/Main.scene"),
+  openScene: z.boolean().default(false),
+  addComponent: z.boolean().default(true),
+  port: z.number().int().min(1024).max(65535).default(17388),
+  timeoutMs: z.number().int().positive().max(120000).default(30000),
+  saveScene: z.boolean().default(true)
+});
+
 const createSpriteNodeInput = z.object({
   projectRoot: z.string().min(1),
   scenePath: z.string().default("assets/scenes/Main.scene"),
@@ -305,6 +319,12 @@ export function registerCocosLocalTools(server: McpServer): void {
     description: "Resolve a Cocos asset path or SpriteFrame UUID and assign it to an existing node's Sprite.spriteFrame property.",
     inputSchema: assignSpriteFrameInput
   }, async (input) => textResult(await assignSpriteFrame(input)));
+
+  server.registerTool("cocos_local_assign_sprite_frame_sequence", {
+    title: "Assign SpriteFrame Sequence",
+    description: "Resolve ordered frame assets and assign them to a component property such as SpriteFrameAnimator.frames.",
+    inputSchema: assignSpriteFrameSequenceInput
+  }, async (input) => textResult(await assignSpriteFrameSequence(input)));
 
   server.registerTool("cocos_local_create_sprite_node", {
     title: "Create Sprite Node",
@@ -1072,6 +1092,90 @@ async function assignSpriteFrame(input: z.infer<typeof assignSpriteFrameInput>) 
   };
 }
 
+async function assignSpriteFrameSequence(input: z.infer<typeof assignSpriteFrameSequenceInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  let opened: unknown = null;
+  if (input.openScene) {
+    opened = await openScene({
+      projectRoot,
+      scenePath: input.scenePath,
+      port: input.port,
+      timeoutMs: input.timeoutMs
+    });
+  }
+  let addedComponent: unknown = null;
+  if (input.addComponent) {
+    addedComponent = await callEditorBridge({
+      port: input.port,
+      route: "/scene/add-component",
+      method: "POST",
+      body: {
+        path: input.nodePath,
+        type: input.componentType
+      },
+      timeoutMs: input.timeoutMs
+    });
+    if (!isBridgeCallSuccessful(addedComponent)) {
+      return {
+        projectRoot,
+        nodePath: input.nodePath,
+        opened,
+        addedComponent,
+        resolvedFrames: [],
+        assigned: null,
+        saved: null,
+        ok: false,
+        notes: [
+          `Could not add or find component ${input.componentType}.`,
+          "Make sure the component script has been imported and compiled by Cocos Creator."
+        ]
+      };
+    }
+  }
+
+  const resolvedFrames = [];
+  for (const assetPath of input.assetPaths) {
+    resolvedFrames.push(await resolveSpriteFrameAsset({
+      projectRoot,
+      assetPath,
+      port: input.port,
+      timeoutMs: input.timeoutMs
+    }));
+  }
+  const assigned = await callEditorBridge({
+    port: input.port,
+    route: "/scene/set-component-asset-array-property",
+    method: "POST",
+    body: {
+      nodePath: input.nodePath,
+      componentType: input.componentType,
+      property: input.property,
+      assetUuids: resolvedFrames.map((frame) => frame.spriteFrameUuid)
+    },
+    timeoutMs: input.timeoutMs
+  });
+  let saved: unknown = null;
+  if (input.saveScene && isBridgeCallSuccessful(assigned)) {
+    saved = await saveSceneThroughBridge(input.port, input.timeoutMs);
+  }
+  return {
+    projectRoot,
+    nodePath: input.nodePath,
+    componentType: input.componentType,
+    property: input.property,
+    opened,
+    addedComponent,
+    resolvedFrames,
+    assigned,
+    saved,
+    ok: isBridgeCallSuccessful(assigned),
+    notes: [
+      "This assigns ordered SpriteFrame assets to an array property. The target component should declare @property([SpriteFrame]).",
+      "If AssetDB cannot resolve fresh frame PNGs, wait for import and retry."
+    ]
+  };
+}
+
 async function createSpriteNode(input: z.infer<typeof createSpriteNodeInput>) {
   const result = await placeSpriteAssets({
     projectRoot: input.projectRoot,
@@ -1512,6 +1616,7 @@ async function handleRequest(req, res) {
           'POST /scene/add-component',
           'POST /scene/set-component-property',
           'POST /scene/set-component-asset-property',
+          'POST /scene/set-component-asset-array-property',
           'POST /scene/apply-blueprint',
           'POST /scene/save',
         ],
@@ -1569,6 +1674,9 @@ async function handleRequest(req, res) {
     }
     if (req.method === 'POST' && route === '/scene/set-component-asset-property') {
       return sendJson(res, 200, await executeScene('setComponentAssetProperty', [body || {}]));
+    }
+    if (req.method === 'POST' && route === '/scene/set-component-asset-array-property') {
+      return sendJson(res, 200, await executeScene('setComponentAssetArrayProperty', [body || {}]));
     }
     if (req.method === 'POST' && route === '/scene/apply-blueprint') {
       return sendJson(res, 200, await executeScene('applyBlueprint', [body || {}]));
@@ -1784,6 +1892,51 @@ exports.methods = {
             assetName: asset && asset.name,
           },
         });
+      });
+    });
+  },
+  setComponentAssetArrayProperty(options) {
+    const { director } = require('cc');
+    const scene = director.getScene();
+    if (!scene) return { ok: false, error: 'No active scene.' };
+    const node = findNode(scene, options && (options.nodeUuid || options.nodePath || options.path));
+    if (!node) return { ok: false, error: 'Node not found.' };
+    const component = findComponent(node, options && (options.componentUuid || options.componentType || options.componentName));
+    if (!component) return { ok: false, error: 'Component not found.' };
+    const property = options && options.property;
+    const uuids = options && (options.assetUuids || options.uuids);
+    if (!property || property.includes('.')) return { ok: false, error: 'Only direct component asset array properties are supported by this route.' };
+    if (!Array.isArray(uuids) || uuids.length === 0) return { ok: false, error: 'assetUuids must be a non-empty array.' };
+    return new Promise((resolve) => {
+      Promise.all(uuids.map((uuid) => loadAssetByUuid(uuid))).then((results) => {
+        const failed = results
+          .map((result, index) => ({ result, index, uuid: uuids[index] }))
+          .filter((entry) => !entry.result.ok);
+        if (failed.length > 0) {
+          resolve({
+            ok: false,
+            error: 'One or more assets failed to load.',
+            failed: failed.map((entry) => ({ index: entry.index, uuid: entry.uuid, error: entry.result.error })),
+          });
+          return;
+        }
+        const assets = results.map((result) => result.asset);
+        component[property] = assets;
+        resolve({
+          ok: true,
+          node: serializeNode(node, 0, 1),
+          component: {
+            uuid: component.uuid,
+            name: component.name,
+            type: component.constructor && component.constructor.name,
+            property,
+            count: assets.length,
+            assetUuids: uuids,
+            assetNames: assets.map((asset) => asset && asset.name),
+          },
+        });
+      }).catch((error) => {
+        resolve({ ok: false, error: error && error.stack ? error.stack : String(error) });
       });
     });
   },

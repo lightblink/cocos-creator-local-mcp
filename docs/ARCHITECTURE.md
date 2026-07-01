@@ -70,6 +70,14 @@ asset path or uuid -> AssetDB info -> SpriteFrame uuid
   -> scene save
 ```
 
+For frame-by-frame animation, the sequence assignment path uses the same AssetDB resolution step but writes an ordered asset array directly through the editor bridge:
+
+```text
+ordered frame paths -> SpriteFrame uuids
+  -> component array property, e.g. SpriteFrameAnimator.frames
+  -> scene save
+```
+
 This keeps asset generation outside this MCP while still making the generated files easy to place into a live Cocos scene.
 
 ## WeChat Build Flow

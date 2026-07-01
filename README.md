@@ -155,6 +155,7 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_open_scene` | Open a scene in the running Cocos editor. |
 | `cocos_local_apply_scene_blueprint` | Apply a scene blueprint through the bridge and optionally save. |
 | `cocos_local_assign_sprite_frame` | Assign a resolved SpriteFrame asset to an existing node's `Sprite.spriteFrame`. |
+| `cocos_local_assign_sprite_frame_sequence` | Assign ordered generated frame assets to a component array property such as `SpriteFrameAnimator.frames`. |
 | `cocos_local_create_sprite_node` | Ensure one Sprite node exists and assign a generated SpriteFrame asset. |
 | `cocos_local_place_sprite_assets` | Place multiple generated sprite assets into the scene in one operation. |
 | `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config. |
@@ -189,6 +190,25 @@ Example sprite placement payload:
 ```
 
 `assetPath` accepts `db://assets/...`, `assets/...`, an absolute project path, or a SpriteFrame UUID. The tool resolves AssetDB info and prefers SpriteFrame sub-assets when assigning `Sprite.spriteFrame`.
+
+For generated frame-by-frame animation, import the individual PNG frames under `assets/`, add a component with an array property such as `@property([SpriteFrame]) frames`, then call `cocos_local_assign_sprite_frame_sequence`:
+
+```json
+{
+  "projectRoot": "/absolute/path/to/my-cocos-project",
+  "nodePath": "Scene/Canvas/GameRoot/Player",
+  "componentType": "SpriteFrameAnimator",
+  "property": "frames",
+  "assetPaths": [
+    "assets/art/characters/run/frame-001.png",
+    "assets/art/characters/run/frame-002.png",
+    "assets/art/characters/run/frame-003.png"
+  ],
+  "addComponent": true
+}
+```
+
+The sequence tool preserves the provided order, resolves each PNG to its imported SpriteFrame sub-asset, assigns the resulting asset array through the editor bridge, and saves the scene when requested.
 
 ## From Zero To Local WeChat Build
 

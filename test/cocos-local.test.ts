@@ -30,6 +30,7 @@ describe("cocos local editor bridge scaffold", () => {
     expect(byPath.get("browser.js")).toContain("isAllowedEditorMessage");
     expect(byPath.get("browser.js")).toContain("/scene/open-scene");
     expect(byPath.get("browser.js")).toContain("/scene/set-component-asset-property");
+    expect(byPath.get("browser.js")).toContain("/scene/set-component-asset-array-property");
     expect(byPath.get("browser.js")).toContain("/scene/apply-blueprint");
     expect(byPath.get("browser.js")).toContain("open-scene");
     expect(byPath.get("browser.js")).toContain("execute-scene-script");
@@ -43,6 +44,7 @@ describe("cocos local editor bridge scaffold", () => {
     expect(byPath.get("scene.js")).toContain("getClassByName");
     expect(byPath.get("scene.js")).toContain("assetProperties");
     expect(byPath.get("scene.js")).toContain("loadAssetByUuid");
+    expect(byPath.get("scene.js")).toContain("setComponentAssetArrayProperty");
   });
 });
 

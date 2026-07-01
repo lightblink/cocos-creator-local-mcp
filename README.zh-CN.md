@@ -156,6 +156,7 @@ npm run check
 | `cocos_local_open_scene` | 在运行中的 Cocos 编辑器里打开场景。 |
 | `cocos_local_apply_scene_blueprint` | 通过 bridge 应用场景蓝图并可保存。 |
 | `cocos_local_assign_sprite_frame` | 把解析到的 SpriteFrame 资源赋给已有节点的 `Sprite.spriteFrame`。 |
+| `cocos_local_assign_sprite_frame_sequence` | 把有序生成帧素材赋给组件数组属性，例如 `SpriteFrameAnimator.frames`。 |
 | `cocos_local_create_sprite_node` | 确保一个 Sprite 节点存在，并赋予生成的 SpriteFrame 素材。 |
 | `cocos_local_place_sprite_assets` | 一次性把多个生成 sprite 素材放进场景。 |
 | `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置。 |
@@ -190,6 +191,25 @@ npm run check
 ```
 
 `assetPath` 支持 `db://assets/...`、`assets/...`、项目内绝对路径或 SpriteFrame UUID。工具会查询 AssetDB，并优先选择 SpriteFrame sub-asset 赋给 `Sprite.spriteFrame`。
+
+如果素材 MCP 生成的是逐帧动画，请把单帧 PNG 导入 `assets/`，在运行时组件中声明类似 `@property([SpriteFrame]) frames` 的数组属性，然后调用 `cocos_local_assign_sprite_frame_sequence`：
+
+```json
+{
+  "projectRoot": "/absolute/path/to/my-cocos-project",
+  "nodePath": "Scene/Canvas/GameRoot/Player",
+  "componentType": "SpriteFrameAnimator",
+  "property": "frames",
+  "assetPaths": [
+    "assets/art/characters/run/frame-001.png",
+    "assets/art/characters/run/frame-002.png",
+    "assets/art/characters/run/frame-003.png"
+  ],
+  "addComponent": true
+}
+```
+
+这个工具会保持传入顺序，把每个 PNG 解析成 Cocos 导入后的 SpriteFrame sub-asset，通过 editor bridge 写入数组属性，并按需保存场景。
 
 ## 从 0 到本地微信小游戏构建
 
