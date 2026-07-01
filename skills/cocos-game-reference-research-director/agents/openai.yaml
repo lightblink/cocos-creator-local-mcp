@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cocos Game Reference Research Director"
+  short_description: "Research game references and genre expectations"
+  default_prompt: "Use $cocos-game-reference-research-director to research reference games, genre expectations, and IP-safe design pillars before planning this Cocos mini-game."

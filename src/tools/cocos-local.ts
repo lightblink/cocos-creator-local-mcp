@@ -49,6 +49,14 @@ const createSceneFromTemplateInput = z.object({
   overwrite: z.boolean().default(false)
 });
 
+const designResolutionInput = z.object({
+  width: z.number().int().positive().describe("Cocos design resolution width in logical pixels."),
+  height: z.number().int().positive().describe("Cocos design resolution height in logical pixels."),
+  fitWidth: z.boolean().optional().describe("Whether Cocos should fit width for screen adaptation."),
+  fitHeight: z.boolean().optional().describe("Whether Cocos should fit height for screen adaptation."),
+  policy: z.number().int().optional().describe("Optional Creator screen policy value; omit unless matching a known project setting.")
+});
+
 const createWechatBuildConfigInput = z.object({
   projectRoot: z.string().min(1),
   appid: z.string().default("wx0000000000000000"),
@@ -60,6 +68,7 @@ const createWechatBuildConfigInput = z.object({
   startScene: z.string().optional().describe("Optional start scene UUID."),
   startScenePath: z.string().optional().describe("Optional scene asset path such as assets/scenes/Main.scene; used to read the startScene UUID from its .meta file."),
   scenes: z.array(z.unknown()).optional().describe("Optional Cocos build scenes array."),
+  designResolution: designResolutionInput.optional().describe("Optional Cocos design resolution for local phone adaptation, e.g. 720x1280 with fitWidth."),
   packages: z.record(z.unknown()).optional().describe("Optional extra platform package config to merge under packages.wechatgame."),
   configPath: z.string().optional().describe("Where to write the build config JSON. Defaults to .codex/cocos-build/wechatgame.build.json under the project."),
   overwrite: z.boolean().default(false)
@@ -177,6 +186,15 @@ const createMinigameSkeletonInput = z.object({
   scriptDir: z.string().default("assets/scripts/codex").describe("Directory under project assets/ for generated TypeScript components."),
   blueprintPath: z.string().default(".codex/cocos/starter-scene-blueprint.json").describe("Where to write the scene assembly blueprint JSON under the project root."),
   targetScore: z.number().int().positive().default(10),
+  overwrite: z.boolean().default(false)
+});
+
+const createArchitectureSkeletonInput = z.object({
+  projectRoot: z.string().min(1),
+  gameName: z.string().min(1).default("Codex Game"),
+  preset: z.enum(["generic-vertical-slice", "tower-defense"]).default("generic-vertical-slice"),
+  scriptDir: z.string().default("assets/scripts/game").describe("Directory under project assets/ for generated architecture modules."),
+  planPath: z.string().default(".codex/cocos/architecture-plan.json").describe("Where to write the architecture plan JSON under the project root."),
   overwrite: z.boolean().default(false)
 });
 
@@ -381,6 +399,12 @@ export function registerCocosLocalTools(server: McpServer): void {
     description: "Create a minimal Cocos Creator 3.8 mini-game runtime skeleton plus a scene assembly blueprint for Editor Bridge application.",
     inputSchema: createMinigameSkeletonInput
   }, async (input) => textResult(await createMinigameSkeleton(input)));
+
+  server.registerTool("cocos_local_create_architecture_skeleton", {
+    title: "Create Cocos Architecture Skeleton",
+    description: "Create a multi-system Cocos Creator TypeScript architecture skeleton for non-trivial games such as tower defense, including core, data, and gameplay system boundaries.",
+    inputSchema: createArchitectureSkeletonInput
+  }, async (input) => textResult(await createArchitectureSkeleton(input)));
 
   server.registerTool("cocos_local_install_editor_bridge", {
     title: "Install Cocos Editor Bridge",
@@ -699,25 +723,19 @@ async function createWechatBuildConfig(input: z.infer<typeof createWechatBuildCo
     throw new Error(`Build config already exists: ${configPath}`);
   }
 
-  const buildConfig: Record<string, unknown> = {
-    taskName: input.outputName,
-    platform: "wechatgame",
-    buildPath: input.buildPath,
+  const startScene = input.startScene ?? (input.startScenePath ? await readSceneUuid(projectRoot, input.startScenePath) : undefined);
+  const buildConfig = makeWechatBuildConfig({
     outputName: input.outputName,
-    name: input.gameName,
+    buildPath: input.buildPath,
+    gameName: input.gameName,
     debug: input.debug,
     md5Cache: input.md5Cache,
-    packages: {
-      wechatgame: {
-        appid: input.appid,
-        ...(input.packages ?? {})
-      }
-    }
-  };
-
-  const startScene = input.startScene ?? (input.startScenePath ? await readSceneUuid(projectRoot, input.startScenePath) : undefined);
-  if (startScene) buildConfig.startScene = startScene;
-  if (input.scenes) buildConfig.scenes = input.scenes;
+    appid: input.appid,
+    packages: input.packages,
+    designResolution: input.designResolution,
+    startScene,
+    scenes: input.scenes
+  });
 
   await mkdir(dirname(configPath), { recursive: true });
   await writeFile(configPath, `${JSON.stringify(buildConfig, null, 2)}\n`, "utf8");
@@ -1162,6 +1180,50 @@ async function createMinigameSkeleton(input: z.infer<typeof createMinigameSkelet
       "Install or enable the Codex editor bridge if it is not already running.",
       "Open the target scene, then call /scene/apply-blueprint with the generated blueprint JSON body.",
       "Call /scene/save after the blueprint applies successfully, then create a wechatgame build config."
+    ]
+  };
+}
+
+async function createArchitectureSkeleton(input: z.infer<typeof createArchitectureSkeletonInput>) {
+  const projectRoot = resolve(input.projectRoot);
+  if (!await exists(projectRoot)) {
+    throw new Error(`Project root does not exist: ${projectRoot}`);
+  }
+  const scriptDir = normalizeProjectRelativePath(input.scriptDir);
+  const planPath = normalizeProjectRelativePath(input.planPath);
+  const assetsRoot = resolve(projectRoot, "assets");
+  const scriptRoot = resolve(projectRoot, scriptDir);
+  if (!scriptRoot.startsWith(`${assetsRoot}/`) && scriptRoot !== assetsRoot) {
+    throw new Error(`scriptDir must be inside project assets/: ${scriptDir}`);
+  }
+
+  const files = architectureSkeletonFiles({
+    gameName: input.gameName,
+    preset: input.preset,
+    scriptDir,
+    planPath
+  });
+  const written: string[] = [];
+  for (const file of files) {
+    const absolutePath = resolveProjectPath(projectRoot, file.path);
+    if (!input.overwrite && await exists(absolutePath)) {
+      throw new Error(`Architecture skeleton file already exists: ${absolutePath}`);
+    }
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, file.content, "utf8");
+    written.push(absolutePath);
+  }
+
+  return {
+    projectRoot,
+    gameName: input.gameName,
+    preset: input.preset,
+    files: written,
+    planPath: resolveProjectPath(projectRoot, planPath),
+    notes: [
+      "This is an optional system-boundary starting point, not a complete game implementation or mandatory architecture.",
+      "Prune, merge, or rename generated systems according to the actual slice complexity.",
+      "Use cocos_local_create_component_script for scene-facing adapters when a Cocos Component needs to host or bridge these systems."
     ]
   };
 }
@@ -1819,6 +1881,41 @@ type WeChatCommandOptions = {
   qrSize?: string;
   infoOutput?: string;
 };
+
+export function makeWechatBuildConfig(input: {
+  outputName: string;
+  buildPath: string;
+  gameName: string;
+  debug: boolean;
+  md5Cache: boolean;
+  appid: string;
+  packages?: Record<string, unknown>;
+  designResolution?: z.infer<typeof designResolutionInput>;
+  startScene?: string;
+  scenes?: unknown[];
+}): Record<string, unknown> {
+  const buildConfig: Record<string, unknown> = {
+    taskName: input.outputName,
+    platform: "wechatgame",
+    buildPath: input.buildPath,
+    outputName: input.outputName,
+    name: input.gameName,
+    debug: input.debug,
+    md5Cache: input.md5Cache,
+    packages: {
+      wechatgame: {
+        appid: input.appid,
+        ...(input.packages ?? {})
+      }
+    }
+  };
+
+  if (input.designResolution) buildConfig.designResolution = input.designResolution;
+  if (input.startScene) buildConfig.startScene = input.startScene;
+  if (input.scenes) buildConfig.scenes = input.scenes;
+
+  return buildConfig;
+}
 
 export function makeWechatDevToolsCommand(executable: string, command: "open" | "preview", options: WeChatCommandOptions) {
   const args = [command, "--project", options.project];
@@ -2785,6 +2882,274 @@ function resolveComponentConstructor(type) {
     if (ctor) return ctor;
   }
   return null;
+}
+`;
+}
+
+export function architectureSkeletonFiles(input: {
+  gameName: string;
+  preset: z.infer<typeof createArchitectureSkeletonInput>["preset"];
+  scriptDir: string;
+  planPath: string;
+}): Array<{ path: string; content: string }> {
+  const scriptDir = normalizeProjectRelativePath(input.scriptDir);
+  const planPath = normalizeProjectRelativePath(input.planPath);
+  const commonSystems = [
+    ["core/GameEventBus.ts", eventBusScript()],
+    ["core/GameStateMachine.ts", stateMachineScript()],
+    ["core/SystemRegistry.ts", systemRegistryScript()],
+    ["data/GameConfig.ts", gameConfigScript()],
+    ["data/BalanceTables.ts", balanceTablesScript()],
+    ["systems/AssetSystem.ts", systemStubScript("AssetSystem", "Owns runtime asset loading, bundle boundaries, and asset lifetime.")],
+    ["systems/AudioSystem.ts", systemStubScript("AudioSystem", "Owns music, SFX, audio unlock, and AudioClip playback routing.")],
+    ["systems/InputSystem.ts", systemStubScript("InputSystem", "Normalizes touch, keyboard debug input, gestures, and input enable/disable state.")],
+    ["systems/UISystem.ts", systemStubScript("UISystem", "Owns HUD, menu, result, pause, and screen transition coordination.")]
+  ];
+  const presetSystems = input.preset === "tower-defense"
+    ? [
+      ["combat/DamageSystem.ts", systemStubScript("DamageSystem", "Resolves damage packets, mitigation, crits, shields, and damage result events.")],
+      ["combat/TargetingSystem.ts", systemStubScript("TargetingSystem", "Selects valid targets for towers, projectiles, skills, and enemy abilities.")],
+      ["combat/ModifierSystem.ts", systemStubScript("ModifierSystem", "Applies affixes, buffs, debuffs, tags, and temporary stat modifiers.")],
+      ["combat/StatusEffectSystem.ts", systemStubScript("StatusEffectSystem", "Ticks slow, burn, stun, poison, mark, and other status effects.")],
+      ["towers/TowerSystem.ts", systemStubScript("TowerSystem", "Owns tower placement, upgrades, attack cadence, range checks, and tower lifecycle.")],
+      ["enemies/EnemySystem.ts", systemStubScript("EnemySystem", "Owns enemy spawn, path progress, health state, leaks, death, and despawn.")],
+      ["waves/WaveSystem.ts", systemStubScript("WaveSystem", "Owns wave schedules, spawn budgets, pacing, and wave completion events.")],
+      ["economy/EconomySystem.ts", systemStubScript("EconomySystem", "Owns currency, costs, rewards, refunds, and economy validation.")],
+      ["levels/LevelSystem.ts", systemStubScript("LevelSystem", "Owns map layout, path data, build slots, level rules, and win/loss conditions.")],
+      ["data/TowerDefenseConfig.ts", towerDefenseConfigScript()]
+    ]
+    : [
+      ["systems/GameplaySystem.ts", systemStubScript("GameplaySystem", "Owns first-loop rules, success/failure conditions, and gameplay state transitions.")],
+      ["systems/SpawnSystem.ts", systemStubScript("SpawnSystem", "Owns timed spawning, spawn budgets, and spawn lifecycle events.")],
+      ["systems/ScoringSystem.ts", systemStubScript("ScoringSystem", "Owns scoring rules, combos, rewards, and score event emission.")]
+    ];
+  const plan = architecturePlan(input.gameName, input.preset, [...commonSystems, ...presetSystems].map(([path]) => join(scriptDir, path)));
+  return [
+    ...commonSystems,
+    ...presetSystems,
+    [planPath, `${JSON.stringify(plan, null, 2)}\n`]
+  ].map(([path, content]) => ({
+    path: path === planPath ? path : join(scriptDir, path),
+    content
+  }));
+}
+
+function architecturePlan(gameName: string, preset: z.infer<typeof createArchitectureSkeletonInput>["preset"], files: string[]) {
+  const baseBoundaries = [
+    "Cocos Components host scene references and forward lifecycle/input into systems.",
+    "Core modules provide event, state, and system registration primitives.",
+    "Data modules own tunable config and balance tables; gameplay systems consume data without hardcoded magic numbers.",
+    "Asset and audio systems isolate generated assets, bundles, AudioClip usage, and runtime loading.",
+    "UI systems observe state/events and do not own gameplay rules."
+  ];
+  return {
+    schemaVersion: 1,
+    gameName,
+    preset,
+    createdBy: "cocos_local_create_architecture_skeleton",
+    intent: preset === "tower-defense"
+      ? "Tower defense architecture boundary scaffold for combat, tower, enemy, wave, economy, level, data, UI, asset, and audio systems."
+      : "Generic vertical-slice architecture boundary scaffold for core gameplay, input, UI, assets, audio, scoring, and spawning.",
+    boundaries: preset === "tower-defense"
+      ? [
+        ...baseBoundaries,
+        "Damage, targeting, modifiers, and status effects are good candidates for a shared combat contract when towers, projectiles, enemies, and skills interact.",
+        "Tower, enemy, wave, economy, and level systems can coordinate through events and typed data when direct component coupling starts to grow."
+      ]
+      : baseBoundaries,
+    generatedFiles: files,
+    nextSteps: [
+      "Create thin Cocos Component adapters for scene nodes that call these systems.",
+      "Use cocos-game-balance-director to fill data tables and ranges.",
+      "Use cocos-asset-pipeline-director for first-loop sprites, UI, SFX, and music.",
+      "Use cocos-scene-prefab-assembly to attach adapters and serialized references.",
+      "Keep or merge systems based on actual complexity; if using a compact manager, keep clear extraction points for domains that grow."
+    ]
+  };
+}
+
+function eventBusScript(): string {
+  return `export type GameEvent<TPayload = unknown> = {
+    type: string;
+    payload: TPayload;
+};
+
+export type GameEventHandler<TPayload = unknown> = (event: GameEvent<TPayload>) => void;
+
+export class GameEventBus {
+    private readonly handlers = new Map<string, Set<GameEventHandler>>();
+
+    on<TPayload>(type: string, handler: GameEventHandler<TPayload>) {
+        const set = this.handlers.get(type) ?? new Set<GameEventHandler>();
+        set.add(handler as GameEventHandler);
+        this.handlers.set(type, set);
+    }
+
+    off<TPayload>(type: string, handler: GameEventHandler<TPayload>) {
+        this.handlers.get(type)?.delete(handler as GameEventHandler);
+    }
+
+    emit<TPayload>(type: string, payload: TPayload) {
+        for (const handler of this.handlers.get(type) ?? []) {
+            handler({ type, payload });
+        }
+    }
+
+    clear() {
+        this.handlers.clear();
+    }
+}
+`;
+}
+
+function stateMachineScript(): string {
+  return `export type GameState = 'boot' | 'menu' | 'playing' | 'paused' | 'win' | 'lose';
+
+export class GameStateMachine {
+    private _state: GameState = 'boot';
+
+    get state() {
+        return this._state;
+    }
+
+    canEnter(next: GameState) {
+        if (this._state === next) return true;
+        if (this._state === 'boot') return next === 'menu' || next === 'playing';
+        if (this._state === 'playing') return next === 'paused' || next === 'win' || next === 'lose';
+        if (this._state === 'paused') return next === 'playing' || next === 'menu';
+        return next === 'menu' || next === 'playing';
+    }
+
+    enter(next: GameState) {
+        if (!this.canEnter(next)) {
+            throw new Error(\`Invalid state transition: \${this._state} -> \${next}\`);
+        }
+        this._state = next;
+    }
+}
+`;
+}
+
+function systemRegistryScript(): string {
+  return `export interface GameSystem {
+    readonly name: string;
+    reset?(): void;
+    update?(deltaTime: number): void;
+    dispose?(): void;
+}
+
+export class SystemRegistry {
+    private readonly systems: GameSystem[] = [];
+
+    add(system: GameSystem) {
+        this.systems.push(system);
+        return system;
+    }
+
+    resetAll() {
+        for (const system of this.systems) system.reset?.();
+    }
+
+    updateAll(deltaTime: number) {
+        for (const system of this.systems) system.update?.(deltaTime);
+    }
+
+    disposeAll() {
+        for (const system of this.systems) system.dispose?.();
+        this.systems.length = 0;
+    }
+}
+`;
+}
+
+function gameConfigScript(): string {
+  return `export type RuntimeConfig = {
+    designWidth: number;
+    designHeight: number;
+    targetFps: number;
+};
+
+export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
+    designWidth: 720,
+    designHeight: 1280,
+    targetFps: 60
+};
+`;
+}
+
+function balanceTablesScript(): string {
+  return `export type BalanceValue = {
+    defaultValue: number;
+    min: number;
+    max: number;
+    unit: string;
+    note: string;
+};
+
+export const BALANCE_TABLES: Record<string, BalanceValue> = {
+    sessionLengthSeconds: { defaultValue: 120, min: 30, max: 300, unit: 'seconds', note: 'Target length for one local test session.' }
+};
+`;
+}
+
+function towerDefenseConfigScript(): string {
+  return `export type TowerConfig = {
+    id: string;
+    cost: number;
+    range: number;
+    damage: number;
+    fireInterval: number;
+    tags: string[];
+};
+
+export type EnemyConfig = {
+    id: string;
+    maxHp: number;
+    speed: number;
+    reward: number;
+    tags: string[];
+};
+
+export type WaveConfig = {
+    id: string;
+    enemyId: string;
+    count: number;
+    interval: number;
+};
+
+export const TOWER_CONFIGS: TowerConfig[] = [
+    { id: 'basic', cost: 50, range: 180, damage: 10, fireInterval: 0.8, tags: ['single-target'] }
+];
+
+export const ENEMY_CONFIGS: EnemyConfig[] = [
+    { id: 'runner', maxHp: 30, speed: 70, reward: 5, tags: ['ground'] }
+];
+
+export const WAVE_CONFIGS: WaveConfig[] = [
+    { id: 'wave-01', enemyId: 'runner', count: 8, interval: 1.0 }
+];
+`;
+}
+
+function systemStubScript(className: string, responsibility: string): string {
+  return `import type { GameSystem } from '../core/SystemRegistry';
+
+export class ${className} implements GameSystem {
+    readonly name = '${className}';
+
+    constructor() {
+        // Responsibility: ${responsibility}
+    }
+
+    reset() {
+    }
+
+    update(deltaTime: number) {
+        void deltaTime;
+    }
+
+    dispose() {
+    }
 }
 `;
 }

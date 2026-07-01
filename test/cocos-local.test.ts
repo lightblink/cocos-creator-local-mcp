@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  architectureSkeletonFiles,
   editorBridgeFiles,
+  makeWechatBuildConfig,
   makeWechatDevToolsCommand,
   makeWechatDevToolsManagementCommand,
   starterSkeletonFiles
@@ -80,6 +82,74 @@ describe("cocos local mini-game skeleton scaffold", () => {
     expect(blueprint.nodes?.some((node) => node.path === "Scene/Canvas/Managers/GameManager")).toBe(true);
     expect(blueprint.nodes?.some((node) => node.components?.some((component) => component.type === "Label"))).toBe(true);
     expect(JSON.stringify(blueprint)).toContain('"targetScore":12');
+  });
+});
+
+describe("cocos architecture skeleton scaffold", () => {
+  it("offers tower defense system boundaries as a starting point", () => {
+    const files = architectureSkeletonFiles({
+      gameName: "Pocket Defense",
+      preset: "tower-defense",
+      scriptDir: "assets/scripts/game",
+      planPath: ".codex/cocos/architecture-plan.json"
+    });
+    const paths = files.map((file) => file.path);
+    const byPath = new Map(files.map((file) => [file.path, file.content]));
+    const plan = JSON.parse(byPath.get(".codex/cocos/architecture-plan.json") ?? "{}") as {
+      preset?: string;
+      boundaries?: string[];
+      generatedFiles?: string[];
+    };
+
+    expect(paths).toContain("assets/scripts/game/combat/DamageSystem.ts");
+    expect(paths).toContain("assets/scripts/game/combat/ModifierSystem.ts");
+    expect(paths).toContain("assets/scripts/game/towers/TowerSystem.ts");
+    expect(paths).toContain("assets/scripts/game/waves/WaveSystem.ts");
+    expect(paths).toContain("assets/scripts/game/economy/EconomySystem.ts");
+    expect(paths).toContain("assets/scripts/game/data/TowerDefenseConfig.ts");
+    expect(paths.some((path) => path.endsWith("GameManager.ts"))).toBe(false);
+    expect(plan.preset).toBe("tower-defense");
+    expect(plan.boundaries?.join(" ")).toContain("shared combat contract");
+    expect(plan.generatedFiles?.length).toBeGreaterThan(12);
+  });
+});
+
+describe("wechat build config helper", () => {
+  it("preserves mobile design resolution settings for Cocos builds", () => {
+    const config = makeWechatBuildConfig({
+      outputName: "wechatgame",
+      buildPath: "project://build",
+      gameName: "Pocket Blocks",
+      debug: true,
+      md5Cache: false,
+      appid: "wx0000000000000000",
+      packages: { orientation: "portrait" },
+      designResolution: {
+        width: 720,
+        height: 1280,
+        fitWidth: true,
+        fitHeight: false
+      },
+      startScene: "main-scene-uuid"
+    });
+
+    expect(config).toMatchObject({
+      taskName: "wechatgame",
+      platform: "wechatgame",
+      designResolution: {
+        width: 720,
+        height: 1280,
+        fitWidth: true,
+        fitHeight: false
+      },
+      startScene: "main-scene-uuid",
+      packages: {
+        wechatgame: {
+          appid: "wx0000000000000000",
+          orientation: "portrait"
+        }
+      }
+    });
   });
 });
 

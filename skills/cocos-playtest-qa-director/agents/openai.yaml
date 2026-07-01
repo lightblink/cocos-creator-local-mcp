@@ -1,0 +1,10 @@
+interface:
+  display_name: "Cocos Playtest QA Director"
+  short_description: "Run playtest and QA gates for Cocos games"
+  default_prompt: "Use $cocos-playtest-qa-director to verify this Cocos mini-game before local release."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "cocos_creator_local"
+      description: "Cocos Creator Local MCP tools for project inspection, scene evidence, local builds, and build output checks."

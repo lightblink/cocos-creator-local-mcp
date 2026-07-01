@@ -19,8 +19,13 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
    - If there is no project yet and Cocos local MCP tools are available, use `cocos_local_create_project` with the `empty-2d` template as the default start for a 2D mini-game; it should also create `assets/scenes/Main.scene`.
 2. Design the runtime flow.
    - Identify game states, UI states, input sources, resource ownership, and reset/restart behavior.
+   - Classify complexity before coding: greybox, small vertical slice, or production-oriented slice. Combat, waves, economy, progression, upgrades, affixes, inventory, multiple actor types, and data tables are signals to consider explicit system boundaries.
+   - For small or production-oriented slices, sketch a system boundary plan before implementation: candidate domain systems, data/config modules, scene-facing adapters, event flow, ownership, and cross-system dependencies. Keep the plan proportional to the slice.
+   - Define a layout contract before implementation: target runtime, target device class, orientation, design resolution, fit policy, safe-area behavior, and the screen regions owned by gameplay and HUD.
+   - Define an asset policy for the slice: generated/staged assets through `cocos-asset-pipeline-director`, existing project assets, or deliberate engine-geometry placeholders. For from-zero mini-games, prefer a minimal generated placeholder pack when the asset MCP is available.
    - Keep a small vertical slice playable before adding breadth.
    - For a new mini-game prototype, use `cocos_local_create_minigame_skeleton` when available to create a baseline GameManager, HUD, input, player controller, pool manager, and starter scene blueprint.
+   - For non-trivial games, consider `cocos_local_create_architecture_skeleton` when available before feature scripts. Use its preset as a starting point to prune, merge, or rename systems according to the actual design, then create thin Cocos Components that host or adapt the chosen systems.
 3. Implement Cocos components.
    - Use `@ccclass`, `@property`, and `Component` lifecycle correctly.
    - Expose scene-tunable values with typed `@property` fields instead of magic constants.
@@ -44,6 +49,19 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Use `dt` for frame-rate independent movement and timers.
 - Unsubscribe events in `onDisable` or `onDestroy`.
 - Guard serialized references before use and report actionable errors.
+- Avoid letting one large Cocos Component own unrelated domains such as game rules, input, UI, spawning, economy, combat, asset loading, and audio. A compact manager is acceptable when the slice is small, but it should have clear boundaries and an easy path to extraction.
+
+## System Architecture Rules
+
+- Prefer Cocos `Component` classes as scene adapters: they own node references, lifecycle hooks, and serialized properties, then delegate durable game rules to systems when the behavior is likely to grow.
+- Let systems own coherent domain behavior: combat, damage, targeting, movement, waves, economy, scoring, progression, input normalization, UI coordination, asset loading, or audio routing. Merge small systems when separation would add ceremony without reducing complexity.
+- Let data/config modules own tunable values, formulas, tables, tags, and IDs once values need tuning or reuse. Early constants are acceptable when they are few, named, and easy to move.
+- Use an event bus, command queue, or explicit method boundary for cross-system communication. Avoid circular imports and direct mutation across unrelated systems.
+- Keep system update order explicit when multiple systems run per frame.
+- Use object pools for frequent runtime objects and keep spawn/despawn ownership clear.
+- For tower defense, consider domains such as `DamageSystem`, `TargetingSystem`, modifier or affix handling, status effects, towers, enemies, waves, economy, levels, assets, audio, UI, and balance/config tables. Use the actual feature set to decide which boundaries deserve files now.
+- For roguelike, RPG, shooter, idle, merge, puzzle, or card games, identify equivalent genre-specific pressure points before implementation instead of defaulting to one manager file by habit.
+- Single-file gameplay is acceptable for a greybox, tiny mechanic proof, or very small vertical slice. If using it, name the tradeoff and the first seams to extract if scope grows.
 
 ## Scene And Prefab Wiring
 
@@ -60,6 +78,7 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Use Asset Bundles for level-specific, optional, cosmetic, or late-loaded content.
 - Release dynamically loaded assets when ownership ends.
 - Avoid hardcoding fragile paths unless the project already uses path-based loading.
+- Do not silently replace the asset pipeline with colored nodes or generated geometry. If geometry-only placeholders are used, state why they are acceptable for this slice and list the sprite, UI, SFX, or music classes still pending.
 
 ## UI And Input
 
@@ -68,6 +87,8 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Support touch-first input for WeChat Mini Game targets.
 - Keep keyboard shortcuts as development conveniences, not the only control path.
 - Make restart, pause/resume, win, lose, and loading states explicit.
+- Do not hardcode a desktop canvas, fixed viewport, or one-off pixel layout for phone mini-games. Use the declared design resolution, anchors, `Widget`, `Layout`, proportional regions, or a small layout controller so the primary playfield and HUD adapt across target aspect ratios.
+- Before coding visual sizes, decide whether a value is design-space, content-space, or screen-relative. Expose important layout and spacing values as serialized properties instead of burying them in magic constants.
 
 ## Performance Guardrails
 
@@ -84,6 +105,8 @@ Target Cocos Creator 3.8 unless the project proves another version. Prefer proje
 - Avoid dependencies that require Node.js, DOM, Web Workers, or browser-only APIs unless the build target proves support.
 - Keep first-playable assets and scripts small; design optional content for bundles.
 - Treat share, login, ads, ranking, and platform APIs as adapters behind a small interface so local gameplay remains testable.
+- Treat missing orientation/design-resolution/adaptation decisions as an architecture gap for new phone-first games, not as a later polish item.
+- Treat missing first-loop asset and audio decisions as a production-readiness gap for from-zero games, even when the gameplay logic builds and runs.
 
 ## Output Standard
 
@@ -93,4 +116,7 @@ When completing a gameplay task, report:
 - Components that must be attached to scene nodes or prefabs.
 - Serialized properties that must be assigned in the editor.
 - Runtime flow and key state transitions.
+- Complexity classification and system boundary plan, including any intentional merges, deferred systems, and extraction triggers if scope grows.
+- Layout contract: target device/orientation, design resolution, fit policy, safe-area behavior, and any responsive layout controller or anchors used.
+- Asset policy: generated/staged/imported assets used, deliberate placeholder geometry, pending sprites/UI/SFX/music, and the reason for any skipped asset class.
 - Verification performed and remaining editor/build steps.

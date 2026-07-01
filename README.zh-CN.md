@@ -153,6 +153,7 @@ npm run check
 | `cocos_local_inspect_project` | 检查项目目录、settings、场景、脚本、bridge 和构建输出。 |
 | `cocos_local_create_component_script` | 创建 Cocos Creator TypeScript 组件脚本。 |
 | `cocos_local_create_minigame_skeleton` | 生成小游戏基础脚本和场景蓝图。 |
+| `cocos_local_create_architecture_skeleton` | 为塔防等游戏生成可选的多系统 TypeScript 架构起点。 |
 | `cocos_local_install_editor_bridge` | 安装项目级编辑器桥接扩展。 |
 | `cocos_local_check_editor_bridge` | 检查桥接文件并可 ping HTTP bridge。 |
 | `cocos_local_wait_for_editor_bridge` | 等待 bridge 响应。 |
@@ -163,7 +164,7 @@ npm run check
 | `cocos_local_assign_sprite_frame_sequence` | 把有序生成帧素材赋给组件数组属性，例如 `SpriteFrameAnimator.frames`。 |
 | `cocos_local_create_sprite_node` | 确保一个 Sprite 节点存在，并赋予生成的 SpriteFrame 素材。 |
 | `cocos_local_place_sprite_assets` | 一次性把多个生成 sprite 素材放进场景。 |
-| `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置。 |
+| `cocos_local_create_wechat_build_config` | 写入可复用的本地微信小游戏构建配置，可带 `designResolution` 作为手机适配策略。 |
 | `cocos_local_build_wechatgame` | 执行本地 Cocos `wechatgame` 命令行构建。 |
 | `cocos_local_check_wechat_build_output` | 检查构建输出必备文件和包体大小预警。 |
 | `cocos_local_open_wechat_devtools` | 通过官方 CLI 在微信开发者工具中打开本地 `build/wechatgame`。 |
@@ -179,6 +180,9 @@ npm run check
 包含的 skills：
 
 - [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture)：实现可维护的 Cocos Creator 游戏脚本、UI 系统和运行时流程。
+- [`cocos-game-reference-research-director`](./skills/cocos-game-reference-research-director)：在策划前调研参考游戏、品类预期、IP 安全设计支柱和后续 skill 交接。
+- [`cocos-interaction-ux-director`](./skills/cocos-interaction-ux-director)：定义触屏优先的操作、HUD 状态、反馈、可读性和自适应布局要求。
+- [`cocos-playtest-qa-director`](./skills/cocos-playtest-qa-director)：规划试玩验收门槛、收集运行时证据，并验证本地可玩性结论是否成立。
 - [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly)：把场景、Prefab、组件、序列化属性和生成素材装配成可运行的本地场景。
 - [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build)：准备、构建、检查和调试本地 `wechatgame` 包，不负责发布。
 
@@ -187,6 +191,9 @@ npm run check
 ```bash
 mkdir -p ~/.codex/skills
 cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-game-reference-research-director ~/.codex/skills/
+cp -R skills/cocos-interaction-ux-director ~/.codex/skills/
+cp -R skills/cocos-playtest-qa-director ~/.codex/skills/
 cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
 cp -R skills/cocos-wechat-local-build ~/.codex/skills/
 ```
@@ -246,13 +253,14 @@ cp -R skills/cocos-wechat-local-build ~/.codex/skills/
 1. 调用 `cocos_local_get_environment` 确认本地路径。
 2. 调用 `cocos_local_create_project` 并传入目标 `projectRoot`。
 3. 调用 `cocos_local_open_project`，设置 `waitForBridge: true`。
-4. 调用 `cocos_local_apply_scene_blueprint` 创建并装配起步场景。
-5. 调用 `cocos_local_create_wechat_build_config`，传入 `startScenePath: "assets/scenes/Main.scene"`。
-6. 调用 `cocos_local_build_wechatgame`。
-7. 调用 `cocos_local_check_wechat_build_output`。
-8. 调用 `cocos_local_audit_runtime_package`，在打开模拟器前检查包体和资源尺寸风险。
-9. 调用 `cocos_local_open_wechat_devtools` 打开本地 `build/wechatgame`。
-10. 观察启动、首次输入、核心循环、结算/失败、重开和日志后，调用 `cocos_local_collect_runtime_evidence`。
+4. 对非平凡玩法，可先考虑 `cocos_local_create_architecture_skeleton`，再按实际切片裁剪或合并建议系统。
+5. 调用 `cocos_local_apply_scene_blueprint` 创建并装配起步场景。
+6. 调用 `cocos_local_create_wechat_build_config`，传入 `startScenePath: "assets/scenes/Main.scene"`，并为手机优先小游戏显式传入 `designResolution`，例如 `{ "width": 720, "height": 1280, "fitWidth": true, "fitHeight": false }`。
+7. 调用 `cocos_local_build_wechatgame`。
+8. 调用 `cocos_local_check_wechat_build_output`。
+9. 调用 `cocos_local_audit_runtime_package`，在打开模拟器前检查包体和资源尺寸风险。
+10. 调用 `cocos_local_open_wechat_devtools` 打开本地 `build/wechatgame`。
+11. 观察启动、首次输入、核心循环、结算/失败、重开和日志后，调用 `cocos_local_collect_runtime_evidence`。
 
 Cocos Creator 命令行构建成功时会返回 exit code `36`。
 

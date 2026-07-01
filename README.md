@@ -152,6 +152,7 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_inspect_project` | Inspect project folders, settings, scenes, scripts, bridge files, and build output. |
 | `cocos_local_create_component_script` | Create a Cocos Creator TypeScript component. |
 | `cocos_local_create_minigame_skeleton` | Generate baseline mini-game scripts and a scene blueprint. |
+| `cocos_local_create_architecture_skeleton` | Generate an optional multi-system TypeScript architecture starting point for games such as tower defense. |
 | `cocos_local_install_editor_bridge` | Install the project-local editor bridge extension. |
 | `cocos_local_check_editor_bridge` | Check bridge files and optionally ping the HTTP bridge. |
 | `cocos_local_wait_for_editor_bridge` | Poll until the bridge responds. |
@@ -162,7 +163,7 @@ If you also use an asset generation MCP, keep it as a separate server:
 | `cocos_local_assign_sprite_frame_sequence` | Assign ordered generated frame assets to a component array property such as `SpriteFrameAnimator.frames`. |
 | `cocos_local_create_sprite_node` | Ensure one Sprite node exists and assign a generated SpriteFrame asset. |
 | `cocos_local_place_sprite_assets` | Place multiple generated sprite assets into the scene in one operation. |
-| `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config. |
+| `cocos_local_create_wechat_build_config` | Write a repeatable local WeChat Mini Game build config, including optional `designResolution` for phone adaptation. |
 | `cocos_local_build_wechatgame` | Run a local Cocos `wechatgame` command-line build. |
 | `cocos_local_check_wechat_build_output` | Inspect build output for required files and size warnings. |
 | `cocos_local_open_wechat_devtools` | Open a local `build/wechatgame` folder in WeChat DevTools through the official CLI. |
@@ -178,6 +179,9 @@ This repository includes optional Codex skills under [`skills/`](./skills). The 
 Included skills:
 
 - [`cocos-creator-gameplay-architecture`](./skills/cocos-creator-gameplay-architecture): build maintainable Cocos Creator gameplay code, UI systems, and runtime flow.
+- [`cocos-game-reference-research-director`](./skills/cocos-game-reference-research-director): research reference games, genre expectations, IP-safe design pillars, and downstream handoffs before planning.
+- [`cocos-interaction-ux-director`](./skills/cocos-interaction-ux-director): define touch-first controls, HUD states, feedback, readability, and adaptive layout requirements.
+- [`cocos-playtest-qa-director`](./skills/cocos-playtest-qa-director): plan playtest gates, collect runtime evidence, and verify whether local playability claims are supported.
 - [`cocos-scene-prefab-assembly`](./skills/cocos-scene-prefab-assembly): wire scenes, prefabs, components, serialized properties, and generated assets into playable local scenes.
 - [`cocos-wechat-local-build`](./skills/cocos-wechat-local-build): prepare, build, inspect, and debug local `wechatgame` packages without publishing.
 
@@ -186,6 +190,9 @@ To install them for Codex:
 ```bash
 mkdir -p ~/.codex/skills
 cp -R skills/cocos-creator-gameplay-architecture ~/.codex/skills/
+cp -R skills/cocos-game-reference-research-director ~/.codex/skills/
+cp -R skills/cocos-interaction-ux-director ~/.codex/skills/
+cp -R skills/cocos-playtest-qa-director ~/.codex/skills/
 cp -R skills/cocos-scene-prefab-assembly ~/.codex/skills/
 cp -R skills/cocos-wechat-local-build ~/.codex/skills/
 ```
@@ -245,13 +252,14 @@ The sequence tool preserves the provided order, resolves each PNG to its importe
 1. Call `cocos_local_get_environment` to confirm local paths.
 2. Call `cocos_local_create_project` with a target `projectRoot`.
 3. Call `cocos_local_open_project` with `waitForBridge: true`.
-4. Call `cocos_local_apply_scene_blueprint` to create and wire the starter scene.
-5. Call `cocos_local_create_wechat_build_config` with `startScenePath: "assets/scenes/Main.scene"`.
-6. Call `cocos_local_build_wechatgame`.
-7. Call `cocos_local_check_wechat_build_output`.
-8. Call `cocos_local_audit_runtime_package` to catch package-budget and asset-size risks before opening the simulator.
-9. Call `cocos_local_open_wechat_devtools` to open the local `build/wechatgame` output.
-10. After observing launch, first input, core loop, result/failure, restart, and logs, call `cocos_local_collect_runtime_evidence`.
+4. For non-trivial gameplay, consider `cocos_local_create_architecture_skeleton` before feature scripts, then prune or merge the suggested systems to fit the actual slice.
+5. Call `cocos_local_apply_scene_blueprint` to create and wire the starter scene.
+6. Call `cocos_local_create_wechat_build_config` with `startScenePath: "assets/scenes/Main.scene"` and an explicit `designResolution` such as `{ "width": 720, "height": 1280, "fitWidth": true, "fitHeight": false }` for phone-first mini-games.
+7. Call `cocos_local_build_wechatgame`.
+8. Call `cocos_local_check_wechat_build_output`.
+9. Call `cocos_local_audit_runtime_package` to catch package-budget and asset-size risks before opening the simulator.
+10. Call `cocos_local_open_wechat_devtools` to open the local `build/wechatgame` output.
+11. After observing launch, first input, core loop, result/failure, restart, and logs, call `cocos_local_collect_runtime_evidence`.
 
 Cocos Creator returns exit code `36` for a successful command-line build.
 

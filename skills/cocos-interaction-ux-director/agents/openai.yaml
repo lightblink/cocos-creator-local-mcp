@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cocos Interaction UX Director"
+  short_description: "Design touch-first Cocos mini-game UX"
+  default_prompt: "Use $cocos-interaction-ux-director to specify touch-first UX, UI states, and feedback for this Cocos Creator WeChat Mini Game."

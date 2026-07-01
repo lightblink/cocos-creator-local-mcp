@@ -20,15 +20,18 @@ Prefer editor/MCP operations when available. If direct editor control is not ava
    - If a new scene asset is needed, use `cocos_local_create_scene_from_template` to create a Creator 3.8 default 2D scene under `assets/scenes`.
 2. Define the runtime graph.
    - Identify persistent managers, gameplay roots, UI roots, pools, cameras, canvas, and authored content.
+   - Define the scene layout contract before node placement: target orientation, design resolution, fit policy, gameplay region, HUD region, safe-area margins, and how narrow/tall screens adapt.
    - For a new 2D mini-game scene, prefer `cocos_local_create_minigame_skeleton` to generate baseline scripts and a starter scene blueprint before custom assembly.
+   - For non-trivial games, use the architecture plan from `cocos-creator-gameplay-architecture` or `cocos_local_create_architecture_skeleton` as a guide before placing managers. Scene nodes should host adapters and roots; they do not need to mirror every pure TypeScript system.
 3. Map components to nodes.
    - For each component, specify host node, required serialized properties, optional properties, and event bindings.
 4. Map assets to references.
    - Identify sprites, audio clips, prefabs, animation clips, fonts, and bundle/resource paths.
+   - For from-zero playable scenes, confirm whether each first-loop visual/audio class is generated, existing, deliberately geometry-only, or pending. Do not let missing sprite/UI/SFX/music assets disappear as an implicit scene-assembly choice.
 5. Create or update prefabs for repeated objects.
    - Player, enemy, bullet, pickup, effect, floating text, and reusable UI items should normally be prefabs.
 6. Verify scene entry.
-   - Confirm start scene, Canvas/camera presence, initial state, input path, UI visibility, and reset/restart behavior.
+   - Confirm start scene, Canvas/camera presence, design resolution alignment, initial state, input path, UI visibility, and reset/restart behavior.
    - If claiming local runtime verification, pair scene assembly checks with `cocos_local_collect_runtime_evidence` after the project has run in Cocos preview or WeChat DevTools.
 
 ## Editor Bridge Workflow
@@ -82,6 +85,10 @@ Scene
 
 Keep world/gameplay nodes separate from UI nodes. Keep manager nodes stable and named predictably so serialized references remain understandable.
 
+For phone-first mini-games, do not assemble the scene around a hardcoded desktop-sized board or HUD. Use Canvas plus `Widget`, `Layout`, anchor-aware transforms, or a layout controller so the playfield occupies the intended share of the target screen and remains readable after Cocos screen fitting.
+
+For production-oriented slices, let scene hierarchy support system boundaries without turning every system into a node. Use nodes for authored references and Cocos lifecycle adapters, and keep pure domain systems in TypeScript modules when that reduces coupling.
+
 When using a generated starter blueprint, inspect the JSON before applying it. It should be treated as an assembly plan: open or create a scene in Cocos Creator, apply it through the bridge, check warnings, then save the scene only after the resulting node tree and component assignments look correct.
 
 ## Prefab Rules
@@ -110,7 +117,7 @@ Do not leave hidden wiring assumptions. If a property must be assigned in the ed
 
 - Generated sprite assets should become `SpriteFrame` references on `Sprite` components or animation frames.
 - Repeated animation frames should become an `AnimationClip` or documented frame sequence, not loose unreferenced PNGs.
-- Audio files should be assigned to `AudioClip` references or loaded through an intentional runtime path.
+- Audio files should be assigned to `AudioClip` references, an `AudioSource`, or loaded through an intentional runtime path. If no high-level audio assignment MCP tool exists, use the editor bridge asset-property route when possible or report the exact pending assignment.
 - UI icon/button art should be assigned to UI `Sprite` components and checked at target resolution.
 - Keep generated/staged assets separate from accepted runtime assets until the user accepts them.
 
@@ -122,10 +129,14 @@ Before claiming assembly is complete, verify or explicitly report as pending:
 - required scripts compile
 - required components are attached to the intended nodes
 - required serialized properties are assigned
+- non-trivial gameplay has a system boundary plan or a clear rationale for a compact adapter, with unrelated domains easy to extract if scope grows
 - prefab instances can be spawned without missing references
 - UI panels start in the correct visibility state
+- Canvas, camera, and UI/gameplay layout match the declared design resolution and fit policy
+- target-runtime screenshot or equivalent visual evidence shows the primary playfield, HUD, and controls are readable and not unintentionally tiny, cropped, or letterboxed
 - gameplay can enter, restart, win/lose, or return to menu as designed
 - no required asset remains only in a generated/staging folder
+- missing first-loop sprite, UI, SFX, or music assets are explicitly accepted as intentional placeholders or listed as pending
 - editor bridge calls succeeded when live scene edits were claimed
 - runtime evidence was collected before claiming the assembled scene is playable in the simulator
 
